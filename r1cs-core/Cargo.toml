@@ -1,5 +1,5 @@
 [package]
-name = "r1cs-core"
+name = "r1cs-core-new"
 version = "0.1.0"
 authors = [
     "Sean Bowe",
@@ -21,7 +21,6 @@ edition = "2018"
 
 [dependencies]
 algebra-core = { path = "../algebra-core", default-features = false }
-smallvec = "1.1.0"
 
 [features]
 default = ["std"]

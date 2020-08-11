@@ -5,6 +5,9 @@ use core::fmt;
 /// such as CRS generation, proving or verification.
 #[derive(Debug)]
 pub enum SynthesisError {
+    /// During synthesis, we tried to allocate a variable when `ConstraintSystemRef`
+    /// was `None`.
+    MissingCS,
     /// During synthesis, we lacked knowledge of a variable assignment.
     AssignmentMissing,
     /// During synthesis, we divided by zero.
@@ -23,6 +26,25 @@ pub enum SynthesisError {
     UnconstrainedVariable,
 }
 
+impl PartialEq for SynthesisError {
+    fn eq(&self, other: &SynthesisError) -> bool {
+        use SynthesisError::*;
+        match (self, other) {
+            (AssignmentMissing, AssignmentMissing)
+            | (MissingCS, MissingCS)
+            | (DivisionByZero, DivisionByZero)
+            | (Unsatisfiable, Unsatisfiable)
+            | (PolynomialDegreeTooLarge, PolynomialDegreeTooLarge)
+            | (UnexpectedIdentity, UnexpectedIdentity)
+            | (MalformedVerifyingKey, MalformedVerifyingKey)
+            | (UnconstrainedVariable, UnconstrainedVariable) => true,
+            (_, _) => false,
+        }
+    }
+}
+
+impl Eq for SynthesisError {}
+
 impl From<io::Error> for SynthesisError {
     fn from(e: io::Error) -> SynthesisError {
         SynthesisError::IoError(e)
@@ -39,6 +61,7 @@ impl std::error::Error for SynthesisError {
 impl fmt::Display for SynthesisError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         match self {
+            SynthesisError::MissingCS => write!(f, "the constraint system was `None`"),
             SynthesisError::AssignmentMissing => {
                 write!(f, "an assignment for a variable could not be computed")
             }
