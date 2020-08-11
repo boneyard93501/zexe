@@ -119,37 +119,45 @@ mod montgomery_affine_impl {
     {
         type Output = MontgomeryAffineVar<P, F>;
         fn add(self, other: &'a Self) -> Self::Output {
-            let cs = self.cs().unwrap_or(ConstraintSystemRef::None);
-            let lambda = F::new_witness(cs.ns("lambda"), || {
+            let cs = [&self, other].cs();
+            let mode = if cs.is_none() || matches!(cs, Some(ConstraintSystemRef::None)) {
+                AllocationMode::Constant
+            } else {
+                AllocationMode::Witness
+            };
+            let cs = cs.unwrap_or(ConstraintSystemRef::None);
+
+            let coeff_b = P::MontgomeryModelParameters::COEFF_B;
+            let coeff_a = P::MontgomeryModelParameters::COEFF_A;
+
+            let lambda = F::new_variable(cs.ns("lambda"), || {
                 let n = other.y.value()? - &self.y.value()?;
                 let d = other.x.value()? - &self.x.value()?;
                 Ok(n * &d.inverse().ok_or(SynthesisError::DivisionByZero)?)
-            })
+            }, mode)
             .unwrap();
             let lambda_n = &other.y - &self.y;
             let lambda_d = &other.x - &self.x;
             lambda_d.mul_equals(&lambda, &lambda_n).unwrap();
 
             // Compute x'' = B*lambda^2 - A - x - x'
-            let xprime = F::new_witness(cs.ns("xprime"), || {
+            let xprime = F::new_variable(cs.ns("xprime"), || {
                 Ok(
-                    lambda.value()?.square() * &P::MontgomeryModelParameters::COEFF_B
-                        - &P::MontgomeryModelParameters::COEFF_A
-                        - &self.x.value()?
-                        - &other.x.value()?,
+                    lambda.value()?.square() * &coeff_b - &coeff_a - &self.x.value()?
+                    - &other.x.value()?,
                 )
-            })
+            }, mode)
             .unwrap();
 
-            let xprime_lc = &self.x + &other.x + &xprime + P::MontgomeryModelParameters::COEFF_A;
+            let xprime_lc = &self.x + &other.x + &xprime + coeff_a;
             // (lambda) * (lambda) = (A + x + x' + x'')
-            let lambda_b = &lambda * P::MontgomeryModelParameters::COEFF_B;
+            let lambda_b = &lambda * coeff_b;
             lambda_b.mul_equals(&lambda, &xprime_lc).unwrap();
 
-            let yprime = F::new_witness(cs.ns("yprime"), || {
+            let yprime = F::new_variable(cs.ns("yprime"), || {
                 Ok(-(self.y.value()?
-                    + &(lambda.value()? * &(xprime.value()? - &self.x.value()?))))
-            })
+                     + &(lambda.value()? * &(xprime.value()? - &self.x.value()?))))
+            }, mode)
             .unwrap();
 
             let xres = &self.x - &xprime;
@@ -607,50 +615,54 @@ impl_bounded_ops!(
     AddAssign,
     add_assign,
     |this: &'a AffineVar<P, F>, other: &'a AffineVar<P, F>| {
-        let cs = [this, other].cs().unwrap_or(ConstraintSystemRef::None);
-        let a = P::COEFF_A;
-        let d = P::COEFF_D;
+        if let Some(cs) = [this, other].cs() {
+            let a = P::COEFF_A;
+            let d = P::COEFF_D;
 
-        // Compute U = (x1 + y1) * (x2 + y2)
-        let u1 = (&this.x * -a) + &this.y;
-        let u2 = &other.x + &other.y;
+            // Compute U = (x1 + y1) * (x2 + y2)
+            let u1 = (&this.x * -a) + &this.y;
+            let u2 = &other.x + &other.y;
 
-        let u = u1 *  &u2;
+            let u = u1 *  &u2;
 
-        // Compute v0 = x1 * y2
-        let v0 = &other.y * &this.x;
+            // Compute v0 = x1 * y2
+            let v0 = &other.y * &this.x;
 
-        // Compute v1 = x2 * y1
-        let v1 = &other.x * &this.y;
+            // Compute v1 = x2 * y1
+            let v1 = &other.x * &this.y;
 
-        // Compute C = d*v0*v1
-        let v2 = &v0 * &v1 * d;
+            // Compute C = d*v0*v1
+            let v2 = &v0 * &v1 * d;
 
-        // Compute x3 = (v0 + v1) / (1 + v2)
-        let x3 = F::new_witness(cs.ns("x3"), || {
-            let t0 = v0.value()? + &v1.value()?;
-            let t1 = P::BaseField::one() + &v2.value()?;
-            Ok(t0 * &t1.inverse().ok_or(SynthesisError::DivisionByZero)?)
-        }).unwrap();
+            // Compute x3 = (v0 + v1) / (1 + v2)
+            let x3 = F::new_witness(cs.ns("x3"), || {
+                let t0 = v0.value()? + &v1.value()?;
+                let t1 = P::BaseField::one() + &v2.value()?;
+                Ok(t0 * &t1.inverse().ok_or(SynthesisError::DivisionByZero)?)
+            }).unwrap();
 
-        let v2_plus_one = &v2 + P::BaseField::one();
-        let v0_plus_v1 = &v0 + &v1;
-        x3.mul_equals(&v2_plus_one, &v0_plus_v1).unwrap();
+            let v2_plus_one = &v2 + P::BaseField::one();
+            let v0_plus_v1 = &v0 + &v1;
+            x3.mul_equals(&v2_plus_one, &v0_plus_v1).unwrap();
 
-        // Compute y3 = (U + a * v0 - v1) / (1 - v2)
-        let y3 = F::new_witness(cs.ns("y3"), || {
-            let t0 = u.value()? + &(a * &v0.value()?) - &v1.value()?;
-            let t1 = P::BaseField::one() - &v2.value()?;
-            Ok(t0 * &t1.inverse().ok_or(SynthesisError::DivisionByZero)?)
-        }).unwrap();
+            // Compute y3 = (U + a * v0 - v1) / (1 - v2)
+            let y3 = F::new_witness(cs.ns("y3"), || {
+                let t0 = u.value()? + &(a * &v0.value()?) - &v1.value()?;
+                let t1 = P::BaseField::one() - &v2.value()?;
+                Ok(t0 * &t1.inverse().ok_or(SynthesisError::DivisionByZero)?)
+            }).unwrap();
 
-        let one_minus_v2 = (&v2 - P::BaseField::one()).negate().unwrap();
-        let a_v0 = &v0 * a;
-        let u_plus_a_v0_minus_v1 = &u + &a_v0 - &v1;
+            let one_minus_v2 = (&v2 - P::BaseField::one()).negate().unwrap();
+            let a_v0 = &v0 * a;
+            let u_plus_a_v0_minus_v1 = &u + &a_v0 - &v1;
 
-        y3.mul_equals(&one_minus_v2, &u_plus_a_v0_minus_v1).unwrap();
+            y3.mul_equals(&one_minus_v2, &u_plus_a_v0_minus_v1).unwrap();
 
-        AffineVar::new(x3, y3)
+            AffineVar::new(x3, y3)
+        } else {
+            assert!(this.is_constant() && other.is_constant());
+            AffineVar::constant(this.value().unwrap() + &other.value().unwrap())
+        }
     },
     |this: &'a AffineVar<P, F>, other: TEProjective<P>| this + AffineVar::constant(other),
     (

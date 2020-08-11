@@ -245,6 +245,8 @@ where
     ///
     /// Does so by multiplying by the prime order, and checking that the result
     /// is unchanged.
+    // TODO: at the moment this doesn't work, because the addition and doubling
+    // formulae are incomplete for even-order points.
     fn enforce_prime_order(&self) -> Result<(), SynthesisError> {
         let r_minus_1 = (-P::ScalarField::one()).into_repr();
 
