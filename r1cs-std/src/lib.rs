@@ -23,13 +23,6 @@ extern crate derivative;
 #[macro_use]
 pub mod macros;
 
-/// used by test_constraint_system
-#[cfg(not(feature = "std"))]
-macro_rules! println {
-    () => {};
-    ($($arg: tt)*) => {};
-}
-
 #[cfg(not(feature = "std"))]
 use ralloc::vec::Vec;
 

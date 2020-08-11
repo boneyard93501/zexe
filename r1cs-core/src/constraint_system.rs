@@ -9,10 +9,10 @@ use core::cell::{Ref, RefCell, RefMut};
 /// The `generate_constraints` method is called to generate constraints for
 /// both CRS generation and for proving.
 ///
-/// TODO: Think: should we replace this with just a closure?
+// TODO: Think: should we replace this with just a closure?
 pub trait ConstraintSynthesizer<F: Field> {
     /// Drives generation of new constraints inside `CS`.
-    fn generate_constraints(self, cs: &mut ConstraintSystem<F>) -> Result<(), SynthesisError>;
+    fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError>;
 }
 
 /// The name of a constraint in `ConstraintSystem`.
@@ -96,7 +96,7 @@ impl<F: Field> ConstraintSystem<F> {
             a_constraints: Vec::new(),
             b_constraints: Vec::new(),
             c_constraints: Vec::new(),
-            instance_assignment: Vec::new(),
+            instance_assignment: vec![F::one()],
             witness_assignment: Vec::new(),
 
             constraint_names: Vec::new(),
@@ -526,10 +526,24 @@ impl<F: Field> ConstraintSystemRef<F> {
             .map_or(false, |cs| cs.borrow().is_in_setup_mode())
     }
 
-    /// Check whether `self.mode == Mode::Setup`.
+    /// Returns the number of constraints.
     #[inline]
     pub fn num_constraints(&self) -> usize {
         self.inner().map_or(0, |cs| cs.borrow().num_constraints)
+    }
+
+    /// Returns the number of instance variables.
+    #[inline]
+    pub fn num_instance_variables(&self) -> usize {
+        self.inner()
+            .map_or(0, |cs| cs.borrow().num_instance_variables)
+    }
+
+    /// Returns the number of witness variables.
+    #[inline]
+    pub fn num_witness_variables(&self) -> usize {
+        self.inner()
+            .map_or(0, |cs| cs.borrow().num_witness_variables)
     }
 
     /// Check whether or not `self` will construct matrices.

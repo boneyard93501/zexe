@@ -130,23 +130,31 @@ mod montgomery_affine_impl {
             let coeff_b = P::MontgomeryModelParameters::COEFF_B;
             let coeff_a = P::MontgomeryModelParameters::COEFF_A;
 
-            let lambda = F::new_variable(cs.ns("lambda"), || {
-                let n = other.y.value()? - &self.y.value()?;
-                let d = other.x.value()? - &self.x.value()?;
-                Ok(n * &d.inverse().ok_or(SynthesisError::DivisionByZero)?)
-            }, mode)
+            let lambda = F::new_variable(
+                cs.ns("lambda"),
+                || {
+                    let n = other.y.value()? - &self.y.value()?;
+                    let d = other.x.value()? - &self.x.value()?;
+                    Ok(n * &d.inverse().ok_or(SynthesisError::DivisionByZero)?)
+                },
+                mode,
+            )
             .unwrap();
             let lambda_n = &other.y - &self.y;
             let lambda_d = &other.x - &self.x;
             lambda_d.mul_equals(&lambda, &lambda_n).unwrap();
 
             // Compute x'' = B*lambda^2 - A - x - x'
-            let xprime = F::new_variable(cs.ns("xprime"), || {
-                Ok(
-                    lambda.value()?.square() * &coeff_b - &coeff_a - &self.x.value()?
-                    - &other.x.value()?,
-                )
-            }, mode)
+            let xprime = F::new_variable(
+                cs.ns("xprime"),
+                || {
+                    Ok(lambda.value()?.square() * &coeff_b
+                        - &coeff_a
+                        - &self.x.value()?
+                        - &other.x.value()?)
+                },
+                mode,
+            )
             .unwrap();
 
             let xprime_lc = &self.x + &other.x + &xprime + coeff_a;
@@ -154,10 +162,14 @@ mod montgomery_affine_impl {
             let lambda_b = &lambda * coeff_b;
             lambda_b.mul_equals(&lambda, &xprime_lc).unwrap();
 
-            let yprime = F::new_variable(cs.ns("yprime"), || {
-                Ok(-(self.y.value()?
-                     + &(lambda.value()? * &(xprime.value()? - &self.x.value()?))))
-            }, mode)
+            let yprime = F::new_variable(
+                cs.ns("yprime"),
+                || {
+                    Ok(-(self.y.value()?
+                        + &(lambda.value()? * &(xprime.value()? - &self.x.value()?))))
+                },
+                mode,
+            )
             .unwrap();
 
             let xres = &self.x - &xprime;

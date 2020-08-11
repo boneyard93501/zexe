@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{prelude::*, Vec};
 use algebra::Field;
 use r1cs_core::SynthesisError;
 
