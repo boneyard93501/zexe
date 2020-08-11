@@ -1,5 +1,5 @@
 [package]
-name = "r1cs-core-new"
+name = "r1cs-core"
 version = "0.1.0"
 authors = [
     "Sean Bowe",

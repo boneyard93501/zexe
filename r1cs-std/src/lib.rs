@@ -1,5 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-#![deny(unused_import_braces, unused_qualifications, trivial_casts)]
+// #![deny(unused_import_braces, unused_qualifications, trivial_casts)]
 #![deny(trivial_numeric_casts, variant_size_differences, unreachable_pub)]
 #![deny(non_shorthand_field_patterns, unused_attributes, unused_imports)]
 #![deny(unused_extern_crates, renamed_and_removed_lints, unused_allocation)]
@@ -20,6 +20,9 @@ extern crate algebra;
 #[macro_use]
 extern crate derivative;
 
+#[macro_use]
+pub mod macros;
+
 /// used by test_constraint_system
 #[cfg(not(feature = "std"))]
 macro_rules! println {
@@ -28,13 +31,12 @@ macro_rules! println {
 }
 
 #[cfg(not(feature = "std"))]
-use ralloc::{collections::BTreeMap, string::String, vec::Vec};
+use ralloc::vec::Vec;
 
 #[cfg(feature = "std")]
-use std::{collections::BTreeMap, string::String, vec::Vec};
+use std::vec::Vec;
 
-pub mod test_constraint_counter;
-pub mod test_constraint_system;
+use algebra::prelude::Field;
 
 pub mod bits;
 pub use self::bits::*;
@@ -60,8 +62,8 @@ pub use instantiated::ed_on_mnt4_753;
 #[cfg(feature = "ed_on_cp6_782")]
 pub use instantiated::ed_on_cp6_782;
 
-#[cfg(feature = "ed_on_bn254")]
-pub use instantiated::ed_on_bn254;
+#[cfg(feature = "ed_on_bw6_761")]
+pub use instantiated::ed_on_bw6_761;
 
 #[cfg(feature = "ed_on_bls12_381")]
 pub use instantiated::ed_on_bls12_381;
@@ -89,12 +91,38 @@ pub mod prelude {
         alloc::*,
         bits::{boolean::Boolean, uint32::UInt32, uint8::UInt8, ToBitsGadget, ToBytesGadget},
         eq::*,
-        fields::{fp::FpGadget, FieldGadget, ToConstraintFieldGadget},
-        groups::GroupGadget,
+        fields::{FieldOpsBounds, FieldVar},
+        groups::{GroupOpsBounds, GroupVar},
         instantiated::*,
-        pairing::PairingGadget,
+        pairing::PairingVar,
         select::*,
+        R1CSVar,
     };
+}
+
+pub trait R1CSVar<F: Field> {
+    fn cs(&self) -> Option<r1cs_core::ConstraintSystemRef<F>>;
+
+    fn is_constant(&self) -> bool {
+        self.cs()
+            .map_or(true, |cs| cs == r1cs_core::ConstraintSystemRef::None)
+    }
+}
+
+impl<F: Field, T: R1CSVar<F>> R1CSVar<F> for [T] {
+    fn cs(&self) -> Option<r1cs_core::ConstraintSystemRef<F>> {
+        let mut result = None;
+        for var in self {
+            result = var.cs().or(result);
+        }
+        result
+    }
+}
+
+impl<'a, F: Field, T: 'a + R1CSVar<F>> R1CSVar<F> for &'a T {
+    fn cs(&self) -> Option<r1cs_core::ConstraintSystemRef<F>> {
+        (*self).cs()
+    }
 }
 
 pub trait Assignment<T> {

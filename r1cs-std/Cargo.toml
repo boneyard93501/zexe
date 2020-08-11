@@ -36,13 +36,12 @@ algebra = { path = "../algebra", default-features = false, features = [ "bls12_3
 [features]
 default = ["std"]
 full = [ 
-  "bls12_377", "ed_on_bn254", "ed_on_bls12_381", "ed_on_bls12_377", "ed_on_cp6_782", 
+  "bls12_377", "ed_on_bls12_381", "ed_on_bls12_377", "ed_on_cp6_782", 
   "ed_on_bw6_761", "ed_on_mnt4_298", "ed_on_mnt4_753", "mnt4_298", "mnt4_753", "mnt6_298", "mnt6_753" 
 ]
 
 bls12_377 = [ "algebra/bls12_377" ]
 ed_on_bls12_381 = [ "algebra/ed_on_bls12_381" ]
-ed_on_bn254 = [ "algebra/ed_on_bn254" ]
 ed_on_bls12_377 = [ "algebra/ed_on_bls12_377" ]
 ed_on_cp6_782 = [ "algebra/ed_on_cp6_782" ]
 ed_on_bw6_761 = [ "algebra/ed_on_bw6_761", "algebra/ed_on_cp6_782" ]
@@ -53,5 +52,5 @@ mnt4_753 = [ "algebra/mnt4_753" ]
 mnt6_298 = [ "algebra/mnt6_298" ]
 mnt6_753 = [ "algebra/mnt6_753" ]
 
-std = [ "algebra/std" ]
+std = [ "algebra/std", "r1cs-core/std" ]
 parallel = [ "std", "algebra/parallel" ]
