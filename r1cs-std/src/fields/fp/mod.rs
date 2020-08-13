@@ -473,13 +473,13 @@ impl<F: PrimeField> CondSelectGadget<F> for AllocatedFp<F> {
 impl<F: PrimeField> TwoBitLookupGadget<F> for AllocatedFp<F> {
     type TableConstant = F;
     fn two_bit_lookup(b: &[Boolean<F>], c: &[Self::TableConstant]) -> Result<Self, SynthesisError> {
-        debug_assert!(b.len() == 2);
-        debug_assert!(c.len() == 4);
+        debug_assert_eq!(b.len(), 2);
+        debug_assert_eq!(c.len(), 4);
         if let Some(cs) = b.cs() {
             let result = Self::new_witness(cs.clone(), || {
                 let lsb = b[0].value()? as usize;
                 let msb = b[1].value()? as usize;
-                let index = lsb + (1 << msb);
+                let index = lsb + (msb << 1);
                 Ok(c[index])
             })?;
             let one = Variable::One;
@@ -504,14 +504,14 @@ impl<F: PrimeField> ThreeBitCondNegLookupGadget<F> for AllocatedFp<F> {
         b0b1: &Boolean<F>,
         c: &[Self::TableConstant],
     ) -> Result<Self, SynthesisError> {
-        debug_assert!(b.len() == 3);
-        debug_assert!(c.len() == 4);
+        debug_assert_eq!(b.len(), 3);
+        debug_assert_eq!(c.len(), 4);
 
         if let Some(cs) = b.cs() {
             let result = Self::new_witness(cs.clone(), || {
                 let lsb = b[0].value()? as usize;
                 let msb = b[1].value()? as usize;
-                let index = lsb + (1 << msb);
+                let index = lsb + (msb << 1);
                 let intermediate = c[index];
 
                 let is_negative = b[2].value()?;
@@ -881,14 +881,14 @@ impl<F: PrimeField> TwoBitLookupGadget<F> for FpVar<F> {
     type TableConstant = F;
 
     fn two_bit_lookup(b: &[Boolean<F>], c: &[Self::TableConstant]) -> Result<Self, SynthesisError> {
-        debug_assert!(b.len() == 2);
-        debug_assert!(c.len() == 4);
+        debug_assert_eq!(b.len(), 2);
+        debug_assert_eq!(c.len(), 4);
         if b.cs().is_some() {
             AllocatedFp::two_bit_lookup(b, c).map(Self::Var)
         } else {
             let lsb = b[0].value()? as usize;
             let msb = b[1].value()? as usize;
-            let index = lsb + (1 << msb);
+            let index = lsb + (msb << 1);
             Ok(Self::Constant(c[index]))
         }
     }
@@ -902,15 +902,15 @@ impl<F: PrimeField> ThreeBitCondNegLookupGadget<F> for FpVar<F> {
         b0b1: &Boolean<F>,
         c: &[Self::TableConstant],
     ) -> Result<Self, SynthesisError> {
-        debug_assert!(b.len() == 2);
-        debug_assert!(c.len() == 4);
+        debug_assert_eq!(b.len(), 3);
+        debug_assert_eq!(c.len(), 4);
 
         if b.cs().or(b0b1.cs()).is_some() {
             AllocatedFp::three_bit_cond_neg_lookup(b, b0b1, c).map(Self::Var)
         } else {
             let lsb = b[0].value()? as usize;
             let msb = b[1].value()? as usize;
-            let index = lsb + (1 << msb);
+            let index = lsb + (msb << 1);
             let intermediate = c[index];
 
             let is_negative = b[2].value()?;

@@ -15,6 +15,7 @@ pub use constraints::*;
 
 pub trait FixedLengthCRH {
     const INPUT_SIZE_BITS: usize;
+
     type Output: ToBytes + Clone + Eq + Hash + Default;
     type Parameters: Clone + Default;
 
