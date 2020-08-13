@@ -1,5 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-// #![deny(unused_import_braces, unused_qualifications, trivial_casts)]
+#![deny(unused_import_braces, unused_qualifications, trivial_casts)]
 #![deny(trivial_numeric_casts, variant_size_differences, unreachable_pub)]
 #![deny(non_shorthand_field_patterns, unused_attributes, unused_imports)]
 #![deny(unused_extern_crates, renamed_and_removed_lints, unused_allocation)]
@@ -42,6 +42,9 @@ mod instantiated;
 
 #[cfg(feature = "bls12_377")]
 pub use instantiated::bls12_377;
+
+#[cfg(feature = "ed_on_bn254")]
+pub use instantiated::ed_on_bn254;
 
 #[cfg(feature = "ed_on_bls12_377")]
 pub use instantiated::ed_on_bls12_377;
