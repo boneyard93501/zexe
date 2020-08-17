@@ -18,7 +18,7 @@ where
     // unnecessarily. Maybe there's an issue tracking this?
 
     type G1Var: GroupVar<E::G1Projective, ConstraintF = Self::ConstraintF>
-        + R1CSVar<Self::ConstraintF>
+        + R1CSVar<Self::ConstraintF, Value = E::G1Projective>
         + EqGadget<Self::ConstraintF>
         + ToBitsGadget<Self::ConstraintF>
         + AllocVar<E::G1Projective, Self::ConstraintF>
@@ -26,7 +26,7 @@ where
         + CondSelectGadget<Self::ConstraintF>;
 
     type G2Var: GroupVar<E::G2Projective, ConstraintF = Self::ConstraintF>
-        + R1CSVar<Self::ConstraintF>
+        + R1CSVar<Self::ConstraintF, Value = E::G2Projective>
         + EqGadget<Self::ConstraintF>
         + ToBitsGadget<Self::ConstraintF>
         + AllocVar<E::G2Projective, Self::ConstraintF>
@@ -37,7 +37,7 @@ where
     type G2PreparedVar: ToBytesGadget<Self::ConstraintF> + Clone + Debug;
     type GTVar: FieldVar<E::Fqk, ConstraintF = Self::ConstraintF>
         + From<Boolean<Self::ConstraintF>>
-        + R1CSVar<Self::ConstraintF>
+        + R1CSVar<Self::ConstraintF, Value = E::Fqk>
         + EqGadget<Self::ConstraintF>
         + ToBitsGadget<Self::ConstraintF>
         + AllocVar<E::Fqk, Self::ConstraintF>

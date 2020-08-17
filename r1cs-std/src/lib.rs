@@ -97,15 +97,25 @@ pub mod prelude {
 }
 
 pub trait R1CSVar<F: Field> {
+    type Value;
+
+    /// Returns the underlying `ConstraintSystemRef`.
     fn cs(&self) -> Option<r1cs_core::ConstraintSystemRef<F>>;
 
+    /// Returns `true` if `self` is a circuit-generation-time constant.
     fn is_constant(&self) -> bool {
         self.cs()
             .map_or(true, |cs| cs == r1cs_core::ConstraintSystemRef::None)
     }
+
+    /// Returns the value that is assigned to `self` in the underlying
+    /// `ConstraintSystem`.
+    fn value(&self) -> Result<Self::Value, r1cs_core::SynthesisError>;
 }
 
 impl<F: Field, T: R1CSVar<F>> R1CSVar<F> for [T] {
+    type Value = Vec<T::Value>;
+
     fn cs(&self) -> Option<r1cs_core::ConstraintSystemRef<F>> {
         let mut result = None;
         for var in self {
@@ -113,11 +123,25 @@ impl<F: Field, T: R1CSVar<F>> R1CSVar<F> for [T] {
         }
         result
     }
+
+    fn value(&self) -> Result<Self::Value, r1cs_core::SynthesisError> {
+        let mut result = Vec::new();
+        for var in self {
+            result.push(var.value()?);
+        }
+        Ok(result)
+    }
 }
 
 impl<'a, F: Field, T: 'a + R1CSVar<F>> R1CSVar<F> for &'a T {
+    type Value = T::Value;
+
     fn cs(&self) -> Option<r1cs_core::ConstraintSystemRef<F>> {
         (*self).cs()
+    }
+
+    fn value(&self) -> Result<Self::Value, r1cs_core::SynthesisError> {
+        (*self).value()
     }
 }
 
@@ -127,6 +151,6 @@ pub trait Assignment<T> {
 
 impl<T> Assignment<T> for Option<T> {
     fn get(self) -> Result<T, r1cs_core::SynthesisError> {
-        self.ok_or_else(|| r1cs_core::SynthesisError::AssignmentMissing)
+        self.ok_or(r1cs_core::SynthesisError::AssignmentMissing)
     }
 }

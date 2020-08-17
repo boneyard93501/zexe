@@ -10,22 +10,34 @@ use core::borrow::Borrow;
 /// unsigned integer.
 #[derive(Clone, Debug)]
 pub struct UInt8<F: Field> {
-    // Least significant bit_gadget first
+    /// Little-endian representation: least significant bit first
     pub(crate) bits: Vec<Boolean<F>>,
+    /// Little-endian representation: least significant bit first
     pub(crate) value: Option<u8>,
 }
 
 impl<F: Field> R1CSVar<F> for UInt8<F> {
+    type Value = u8;
+
     fn cs(&self) -> Option<ConstraintSystemRef<F>> {
         self.bits.as_slice().cs()
+    }
+
+    fn value(&self) -> Result<Self::Value, SynthesisError> {
+        let mut value = None;
+        for (i, bit) in self.bits.iter().enumerate() {
+            let b = u8::from(bit.value()?);
+            value = match value {
+                Some(value) => Some(value + (b << i)),
+                None => Some(b << i),
+            };
+        }
+        debug_assert_eq!(self.value, value);
+        value.get()
     }
 }
 
 impl<F: Field> UInt8<F> {
-    pub fn value(&self) -> Result<u8, SynthesisError> {
-        self.value.get()
-    }
-
     /// Construct a constant vector of `UInt8` from a vector of `u8`
     pub fn constant_vec(values: &[u8]) -> Vec<Self> {
         let mut result = Vec::new();

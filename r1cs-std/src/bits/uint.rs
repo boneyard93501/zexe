@@ -24,17 +24,27 @@ macro_rules! make_uint {
             }
 
             impl<F: Field> R1CSVar<F> for $name<F> {
+                type Value = $native;
+
                 fn cs(&self) -> Option<ConstraintSystemRef<F>> {
                     self.bits.as_slice().cs()
+                }
+
+                fn value(&self) -> Result<Self::Value, SynthesisError> {
+                    let mut value = None;
+                    for (i, bit) in self.bits.iter().enumerate() {
+                        let b = $native::from(bit.value()?);
+                        value = match value {
+                            Some(value) => Some(value + (b << i)),
+                            None => Some(b << i),
+                        };
+                    }
+                    debug_assert_eq!(self.value, value);
+                    value.get()
                 }
             }
 
             impl<F: Field> $name<F> {
-                /// Return the value of self, if assigned one.
-                pub fn value(&self) -> Result<$native, SynthesisError> {
-                    self.value.get()
-                }
-
                 /// Construct a constant `$name` from a `$native`
                 pub fn constant(value: $native) -> Self {
                     let mut bits = Vec::with_capacity($size);

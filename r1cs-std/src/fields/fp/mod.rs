@@ -11,7 +11,7 @@ pub mod cmp;
 #[derive(Debug, Clone)]
 #[must_use]
 pub struct AllocatedFp<F: PrimeField> {
-    pub value: Option<F>,
+    pub(crate) value: Option<F>,
     pub variable: Variable,
     pub cs: ConstraintSystemRef<F>,
 }
@@ -35,10 +35,19 @@ pub enum FpVar<F: PrimeField> {
 }
 
 impl<F: PrimeField> R1CSVar<F> for FpVar<F> {
+    type Value = F;
+
     fn cs(&self) -> Option<ConstraintSystemRef<F>> {
         match self {
             Self::Constant(_) => None,
             Self::Var(a) => Some(a.cs.clone()),
+        }
+    }
+
+    fn value(&self) -> Result<Self::Value, SynthesisError> {
+        match self {
+            Self::Constant(v) => Ok(*v),
+            Self::Var(v) => v.value(),
         }
     }
 }
@@ -80,7 +89,7 @@ impl<F: PrimeField> AllocatedFp<F> {
     }
 
     fn value(&self) -> Result<F, SynthesisError> {
-        self.value.get()
+        self.cs.assigned_value(self.variable).get()
     }
 
     fn add(&self, other: &Self) -> Self {
@@ -177,7 +186,7 @@ impl<F: PrimeField> AllocatedFp<F> {
 
     #[inline]
     fn inverse(&self) -> Result<Self, SynthesisError> {
-        let inverse = Self::new_witness(self.cs.clone(), || self.value()?.inverse().get())?;
+        let inverse = Self::new_witness(self.cs.clone(), || self.value.get()?.inverse().get())?;
 
         self.cs.enforce_constraint(
             lc!() + self.variable,
@@ -222,11 +231,12 @@ impl<F: PrimeField> AllocatedFp<F> {
     ///
     /// Consumes three constraints
     fn is_neq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError> {
-        let is_not_equal =
-            Boolean::new_witness(self.cs.clone(), || Ok(self.value()? != other.value()?))?;
+        let is_not_equal = Boolean::new_witness(self.cs.clone(), || {
+            Ok(self.value.get()? != other.value.get()?)
+        })?;
         let multiplier = self.cs.new_witness_variable(|| {
             if is_not_equal.value()? {
-                (self.value()? - other.value()?).inverse().get()
+                (self.value.get()? - other.value.get()?).inverse().get()
             } else {
                 Ok(F::one())
             }
@@ -307,7 +317,7 @@ impl<F: PrimeField> AllocatedFp<F> {
     ) -> Result<(), SynthesisError> {
         let multiplier = Self::new_witness(self.cs.clone(), || {
             if should_enforce.value()? {
-                (self.value()? - other.value()?).inverse().get()
+                (self.value.get()? - other.value.get()?).inverse().get()
             } else {
                 Ok(F::zero())
             }
@@ -439,17 +449,17 @@ impl<F: PrimeField> CondSelectGadget<F> for AllocatedFp<F> {
     #[inline]
     fn conditionally_select(
         cond: &Boolean<F>,
-        true_value: &Self,
-        false_value: &Self,
+        true_val: &Self,
+        false_val: &Self,
     ) -> Result<Self, SynthesisError> {
         match cond {
-            Boolean::Constant(true) => Ok(true_value.clone()),
-            Boolean::Constant(false) => Ok(false_value.clone()),
+            Boolean::Constant(true) => Ok(true_val.clone()),
+            Boolean::Constant(false) => Ok(false_val.clone()),
             _ => {
                 let cs = cond.cs().unwrap();
                 let result = Self::new_witness(cs.clone(), || {
                     cond.value()
-                        .and_then(|c| if c { true_value } else { false_value }.value())
+                        .and_then(|c| if c { true_val } else { false_val }.value.get())
                 })?;
                 // a = self; b = other; c = cond;
                 //
@@ -458,8 +468,8 @@ impl<F: PrimeField> CondSelectGadget<F> for AllocatedFp<F> {
                 // c * (a - b) = r - b
                 cs.enforce_constraint(
                     cond.lc(),
-                    lc!() + true_value.variable - false_value.variable,
-                    lc!() + result.variable - false_value.variable,
+                    lc!() + true_val.variable - false_val.variable,
+                    lc!() + result.variable - false_val.variable,
                 )?;
 
                 Ok(result)
@@ -581,13 +591,6 @@ impl<F: PrimeField> FieldVar<F> for FpVar<F> {
 
     fn one() -> Self {
         Self::Constant(F::one())
-    }
-
-    fn value(&self) -> Result<F, SynthesisError> {
-        match self {
-            Self::Constant(v) => Ok(*v),
-            Self::Var(v) => v.value(),
-        }
     }
 
     fn double(&self) -> Result<Self, SynthesisError> {

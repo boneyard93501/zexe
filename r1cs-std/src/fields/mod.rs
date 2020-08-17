@@ -38,7 +38,7 @@ pub trait FieldVar<F: Field>:
     'static
     + Clone
     + From<Boolean<<Self as FieldVar<F>>::ConstraintF>>
-    + R1CSVar<<Self as FieldVar<F>>::ConstraintF>
+    + R1CSVar<<Self as FieldVar<F>>::ConstraintF, Value = F>
     + EqGadget<<Self as FieldVar<F>>::ConstraintF>
     + ToBitsGadget<<Self as FieldVar<F>>::ConstraintF>
     + AllocVar<F, <Self as FieldVar<F>>::ConstraintF>
@@ -59,8 +59,6 @@ where
     for<'a> &'a Self: FieldOpsBounds<'a, F, Self>,
 {
     type ConstraintF: Field;
-
-    fn value(&self) -> Result<F, SynthesisError>;
 
     fn zero() -> Self;
 

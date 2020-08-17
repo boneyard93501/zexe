@@ -36,8 +36,16 @@ mod montgomery_affine_impl {
         F: FieldVar<P::BaseField>,
         for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
     {
+        type Value = (P::BaseField, P::BaseField);
+
         fn cs(&self) -> Option<ConstraintSystemRef<F::ConstraintF>> {
             self.x.cs().or(self.y.cs())
+        }
+
+        fn value(&self) -> Result<Self::Value, SynthesisError> {
+            let x = self.x.value()?;
+            let y = self.y.value()?;
+            Ok((x, y))
         }
     }
 
@@ -240,8 +248,17 @@ where
     F: FieldVar<P::BaseField>,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
+    type Value = TEProjective<P>;
+
     fn cs(&self) -> Option<ConstraintSystemRef<F::ConstraintF>> {
         self.x.cs().or(self.y.cs())
+    }
+
+    #[inline]
+    fn value(&self) -> Result<TEProjective<P>, SynthesisError> {
+        let (x, y) = (self.x.value()?, self.y.value()?);
+        let result = TEAffine::new(x, y);
+        Ok(result.into())
     }
 }
 
@@ -269,13 +286,6 @@ where
 
     fn is_zero(&self) -> Result<Boolean<Self::ConstraintF>, SynthesisError> {
         self.x.is_zero()?.and(&self.x.is_one()?)
-    }
-
-    #[inline]
-    fn value(&self) -> Result<TEProjective<P>, SynthesisError> {
-        let (x, y) = (self.x.value()?, self.y.value()?);
-        let result = TEAffine::new(x, y);
-        Ok(result.into())
     }
 
     fn new_variable_omit_prime_order_check(

@@ -28,7 +28,7 @@ pub trait GroupVar<G: Group>:
     + Sized
     + Clone
     + Debug
-    + R1CSVar<<Self as GroupVar<G>>::ConstraintF>
+    + R1CSVar<<Self as GroupVar<G>>::ConstraintF, Value = G>
     + ToBitsGadget<<Self as GroupVar<G>>::ConstraintF>
     + ToBytesGadget<<Self as GroupVar<G>>::ConstraintF>
     + EqGadget<<Self as GroupVar<G>>::ConstraintF>
@@ -53,8 +53,6 @@ where
     fn is_zero(&self) -> Result<Boolean<Self::ConstraintF>, SynthesisError> {
         self.is_eq(&Self::zero())
     }
-
-    fn value(&self) -> Result<G, SynthesisError>;
 
     /// Allocate a variable in the subgroup without checking if it's in the
     /// prime-order subgroup

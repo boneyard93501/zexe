@@ -74,8 +74,18 @@ where
     for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
     P: CubicExtVarParams<BF>,
 {
+    type Value = CubicExtField<P>;
+
     fn cs(&self) -> Option<ConstraintSystemRef<BF::ConstraintF>> {
         [&self.c0, &self.c1, &self.c2].cs()
+    }
+
+    #[inline]
+    fn value(&self) -> Result<Self::Value, SynthesisError> {
+        match (self.c0.value(), self.c1.value(), self.c2.value()) {
+            (Ok(c0), Ok(c1), Ok(c2)) => Ok(CubicExtField::new(c0, c1, c2)),
+            (..) => Err(SynthesisError::AssignmentMissing),
+        }
     }
 }
 
@@ -135,14 +145,6 @@ where
         let c1 = BF::zero();
         let c2 = BF::zero();
         Self::new(c0, c1, c2)
-    }
-
-    #[inline]
-    fn value(&self) -> Result<CubicExtField<P>, SynthesisError> {
-        match (self.c0.value(), self.c1.value(), self.c2.value()) {
-            (Ok(c0), Ok(c1), Ok(c2)) => Ok(CubicExtField::new(c0, c1, c2)),
-            (..) => Err(SynthesisError::AssignmentMissing),
-        }
     }
 
     #[inline]

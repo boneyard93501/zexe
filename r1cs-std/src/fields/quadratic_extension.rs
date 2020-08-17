@@ -106,8 +106,18 @@ where
     for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
     P: QuadExtVarParams<BF>,
 {
+    type Value = QuadExtField<P>;
+
     fn cs(&self) -> Option<ConstraintSystemRef<BF::ConstraintF>> {
         [&self.c0, &self.c1].cs()
+    }
+
+    #[inline]
+    fn value(&self) -> Result<Self::Value, SynthesisError> {
+        match (self.c0.value(), self.c1.value()) {
+            (Ok(c0), Ok(c1)) => Ok(QuadExtField::new(c0, c1)),
+            (..) => Err(SynthesisError::AssignmentMissing),
+        }
     }
 }
 
@@ -163,14 +173,6 @@ where
         let c0 = BF::one();
         let c1 = BF::zero();
         Self::new(c0, c1)
-    }
-
-    #[inline]
-    fn value(&self) -> Result<QuadExtField<P>, SynthesisError> {
-        match (self.c0.value(), self.c1.value()) {
-            (Ok(c0), Ok(c1)) => Ok(QuadExtField::new(c0, c1)),
-            (..) => Err(SynthesisError::AssignmentMissing),
-        }
     }
 
     #[inline]

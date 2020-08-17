@@ -82,8 +82,20 @@ where
     F: FieldVar<P::BaseField>,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
+    type Value = SWProjective<P>;
+
     fn cs(&self) -> Option<ConstraintSystemRef<F::ConstraintF>> {
         self.x.cs().or(self.y.cs()).or(self.z.cs())
+    }
+
+    fn value(&self) -> Result<Self::Value, SynthesisError> {
+        let (x, y, z) = (self.x.value()?, self.y.value()?, self.z.value()?);
+        let result = if let Some(z_inv) = z.inverse() {
+            SWAffine::new(x * &z_inv, y * &z_inv, false)
+        } else {
+            SWAffine::zero()
+        };
+        Ok(result.into())
     }
 }
 
@@ -192,17 +204,6 @@ where
 
     fn is_zero(&self) -> Result<Boolean<Self::ConstraintF>, SynthesisError> {
         self.z.is_zero()
-    }
-
-    #[inline]
-    fn value(&self) -> Result<SWProjective<P>, SynthesisError> {
-        let (x, y, z) = (self.x.value()?, self.y.value()?, self.z.value()?);
-        let result = if let Some(z_inv) = z.inverse() {
-            SWAffine::new(x * &z_inv, y * &z_inv, false)
-        } else {
-            SWAffine::zero()
-        };
-        Ok(result.into())
     }
 
     fn new_variable_omit_prime_order_check(

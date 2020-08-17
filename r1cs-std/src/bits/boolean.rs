@@ -9,12 +9,11 @@ use r1cs_core::{lc, ConstraintSystemRef, LinearCombination, Namespace, Synthesis
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AllocatedBit<F: Field> {
     variable: Variable,
-    value: Option<bool>,
     cs: ConstraintSystemRef<F>,
 }
 
-pub(crate) fn bool_to_field<F: Field>(val: bool) -> F {
-    if val {
+pub(crate) fn bool_to_field<F: Field>(val: impl Borrow<bool>) -> F {
+    if *val.borrow() {
         F::one()
     } else {
         F::zero()
@@ -24,7 +23,14 @@ pub(crate) fn bool_to_field<F: Field>(val: bool) -> F {
 impl<F: Field> AllocatedBit<F> {
     /// Get the assigned value for `self`.
     pub fn value(&self) -> Result<bool, SynthesisError> {
-        self.value.get()
+        let value = self.cs.assigned_value(self.variable).get()?;
+        if value.is_zero() {
+            Ok(false)
+        } else if value.is_one() {
+            Ok(true)
+        } else {
+            unreachable!("Incorrect value assigned: {:?}", value);
+        }
     }
 
     /// Get the R1CS variable for `self`.
@@ -37,16 +43,8 @@ impl<F: Field> AllocatedBit<F> {
         cs: ConstraintSystemRef<F>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
     ) -> Result<Self, SynthesisError> {
-        let mut value = None;
-        let variable = cs.new_witness_variable(|| {
-            value = Some(*f()?.borrow());
-            value.get().map(bool_to_field)
-        })?;
-        Ok(Self {
-            value,
-            variable,
-            cs,
-        })
+        let variable = cs.new_witness_variable(|| f().map(bool_to_field))?;
+        Ok(Self { variable, cs })
     }
 
     /// Performs an XOR operation over the two operands, returning
@@ -169,23 +167,17 @@ impl<F: Field> AllocVar<bool, F> for AllocatedBit<F> {
         let ns = cs.into();
         let cs = ns.cs();
         if mode == AllocationMode::Constant {
-            let value = *f()?.borrow();
-            let variable = if value { Variable::One } else { Variable::Zero };
-            Ok(Self {
-                variable,
-                value: Some(value),
-                cs,
-            })
-        } else {
-            let mut value = None;
-            let val_generator = || {
-                value = Some(*f()?.borrow());
-                value.get().map(bool_to_field)
-            };
-            let variable = if mode == AllocationMode::Input {
-                cs.new_input_variable(val_generator)?
+            let variable = if *f()?.borrow() {
+                Variable::One
             } else {
-                cs.new_witness_variable(val_generator)?
+                Variable::Zero
+            };
+            Ok(Self { variable, cs })
+        } else {
+            let variable = if mode == AllocationMode::Input {
+                cs.new_input_variable(|| f().map(bool_to_field))?
+            } else {
+                cs.new_witness_variable(|| f().map(bool_to_field))?
             };
 
             // Constrain: (1 - a) * a = 0
@@ -198,11 +190,7 @@ impl<F: Field> AllocVar<bool, F> for AllocatedBit<F> {
                 lc!(),
             )?;
 
-            Ok(Self {
-                variable,
-                value,
-                cs,
-            })
+            Ok(Self { variable, cs })
         }
     }
 }
@@ -238,23 +226,25 @@ pub enum Boolean<F: Field> {
 }
 
 impl<F: Field> R1CSVar<F> for Boolean<F> {
+    type Value = bool;
+
     fn cs(&self) -> Option<ConstraintSystemRef<F>> {
         match self {
             Self::Is(a) | Self::Not(a) => Some(a.cs.clone()),
             _ => None,
         }
     }
-}
 
-impl<F: Field> Boolean<F> {
-    pub fn value(&self) -> Result<bool, SynthesisError> {
+    fn value(&self) -> Result<Self::Value, SynthesisError> {
         match self {
             Boolean::Constant(c) => Ok(*c),
             Boolean::Is(ref v) => v.value(),
             Boolean::Not(ref v) => v.value().map(|b| !b),
         }
     }
+}
 
+impl<F: Field> Boolean<F> {
     pub fn lc(&self) -> LinearCombination<F> {
         match self {
             Boolean::Constant(false) => lc!(),
