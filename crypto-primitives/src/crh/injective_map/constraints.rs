@@ -29,6 +29,7 @@ where
         + ToBytesGadget<GG::ConstraintF>
         + CondSelectGadget<GG::ConstraintF>
         + AllocVar<I::Output, GG::ConstraintF>
+        + R1CSVar<GG::ConstraintF, Value = I::Output>
         + Debug
         + Clone
         + Sized;

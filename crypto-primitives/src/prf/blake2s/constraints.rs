@@ -343,6 +343,22 @@ impl<ConstraintF: PrimeField> AllocVar<[u8; 32], ConstraintF> for OutputVar<Cons
     }
 }
 
+impl<F: PrimeField> R1CSVar<F> for OutputVar<F> {
+    type Value = [u8; 32];
+
+    fn cs(&self) -> Option<ConstraintSystemRef<F>> {
+        self.0.cs()
+    }
+
+    fn value(&self) -> Result<Self::Value, SynthesisError> {
+        let mut value = [0u8; 32];
+        for (val_i, self_i) in value.iter_mut().zip(&self.0) {
+            *val_i = self_i.value()?;
+        }
+        Ok(value)
+    }
+}
+
 impl<F: PrimeField> PRFGadget<Blake2s, F> for Blake2sGadget {
     type OutputVar = OutputVar<F>;
 

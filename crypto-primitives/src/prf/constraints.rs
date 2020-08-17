@@ -7,7 +7,12 @@ use r1cs_core::{ConstraintSystemRef, SynthesisError};
 use r1cs_std::prelude::*;
 
 pub trait PRFGadget<P: PRF, F: Field> {
-    type OutputVar: EqGadget<F> + ToBytesGadget<F> + AllocVar<P::Output, F> + Clone + Debug;
+    type OutputVar: EqGadget<F>
+        + ToBytesGadget<F>
+        + AllocVar<P::Output, F>
+        + R1CSVar<F, Value = P::Output>
+        + Clone
+        + Debug;
 
     fn new_seed(cs: ConstraintSystemRef<F>, seed: &[u8; 32]) -> Vec<UInt8<F>>;
 

@@ -117,7 +117,7 @@ mod test {
         test_rng, ProjectiveCurve,
     };
     use r1cs_core::{ConstraintSystem, ConstraintSystemRef};
-    use r1cs_std::{alloc::AllocVar, ed_on_bls12_381::FqVar, groups::GroupVar, uint8::UInt8};
+    use r1cs_std::{alloc::AllocVar, ed_on_bls12_381::FqVar, uint8::UInt8, R1CSVar};
 
     type TestCRH = CRH<EdwardsParameters, Window>;
     type TestCRHGadget = CRHGadget<EdwardsParameters, FqVar>;
@@ -166,15 +166,12 @@ mod test {
             cs.num_constraints()
         );
 
-        let gadget_result = TestCRHGadget::evaluate(&parameters_var, &input_var).unwrap();
+        let result_var = TestCRHGadget::evaluate(&parameters_var, &input_var).unwrap();
 
         println!("number of constraints total: {}", cs.num_constraints());
 
         let primitive_result = primitive_result.into_affine();
-        assert_eq!(
-            primitive_result,
-            gadget_result.value().unwrap().into_affine()
-        );
+        assert_eq!(primitive_result, result_var.value().unwrap().into_affine());
         assert!(cs.is_satisfied().unwrap());
     }
 }

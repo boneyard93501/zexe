@@ -8,13 +8,14 @@ use r1cs_std::prelude::*;
 
 pub trait FixedLengthCRHGadget<H: FixedLengthCRH, ConstraintF: Field>: Sized {
     type OutputVar: EqGadget<ConstraintF>
-        + EqGadget<ConstraintF>
         + ToBytesGadget<ConstraintF>
         + CondSelectGadget<ConstraintF>
         + AllocVar<H::Output, ConstraintF>
+        + R1CSVar<ConstraintF, Value = H::Output>
         + Debug
         + Clone
         + Sized;
+
     type ParametersVar: AllocVar<H::Parameters, ConstraintF> + Clone;
 
     fn evaluate(
