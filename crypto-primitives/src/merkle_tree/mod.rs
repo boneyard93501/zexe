@@ -369,7 +369,7 @@ mod test {
         crh::{pedersen::*, *},
         merkle_tree::*,
     };
-    use algebra::{ed_on_bls12_381::EdwardsAffine as JubJub, Zero};
+    use algebra::{ed_on_bls12_381::EdwardsProjective as JubJub, ProjectiveCurve, Zero};
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
@@ -435,7 +435,7 @@ mod test {
 
         let crh_parameters = H::setup(&mut rng).unwrap();
         let tree = JubJubMerkleTree::new(crh_parameters.clone(), &leaves).unwrap();
-        let root = JubJub::zero();
+        let root = JubJub::zero().into_affine();
         for (i, leaf) in leaves.iter().enumerate() {
             let proof = tree.generate_proof(i, &leaf).unwrap();
             assert!(proof.verify(&crh_parameters, &root, &leaf).unwrap());

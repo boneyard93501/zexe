@@ -1,62 +1,57 @@
-use algebra_core::{Field, PrimeField};
-
 use crate::commitment::{
     injective_map::{InjectiveMap, PedersenCommCompressor},
     pedersen::{
-        constraints::{
-            PedersenCommitmentGadget, PedersenCommitmentGadgetParameters, PedersenRandomnessGadget,
-        },
-        PedersenWindow,
+        constraints::{CommGadget, ParametersVar, RandomnessVar},
+        Window,
     },
-    CommitmentGadget,
 };
 
 pub use crate::crh::injective_map::constraints::InjectiveMapGadget;
-use algebra_core::groups::Group;
-use r1cs_core::{ConstraintSystem, SynthesisError};
-use r1cs_std::{groups::GroupGadget, uint8::UInt8};
+use algebra_core::{PrimeField, ProjectiveCurve};
+use r1cs_core::SynthesisError;
+use r1cs_std::{
+    groups::{GroupOpsBounds, GroupVar},
+    uint8::UInt8,
+};
 
 use core::marker::PhantomData;
 
-pub struct PedersenCommitmentCompressorGadget<G, I, ConstraintF, GG, IG>
+pub struct CommitmentCompressorGadget<C, I, W, GG, IG>
 where
-    G: Group,
-    I: InjectiveMap<G>,
-    ConstraintF: Field,
-    GG: GroupGadget<G, ConstraintF>,
-    IG: InjectiveMapGadget<G, I, ConstraintF, GG>,
+    C: ProjectiveCurve,
+    I: InjectiveMap<C>,
+    W: Window,
+    GG: GroupVar<C>,
+    IG: InjectiveMapGadget<C, I, GG>,
+    for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
 {
     _compressor: PhantomData<I>,
     _compressor_gadget: PhantomData<IG>,
-    _crh: PedersenCommitmentGadget<G, ConstraintF, GG>,
+    _comm: PhantomData<CommGadget<C, GG, W>>,
 }
 
-impl<G, I, ConstraintF, GG, IG, W> CommitmentGadget<PedersenCommCompressor<G, I, W>, ConstraintF>
-    for PedersenCommitmentCompressorGadget<G, I, ConstraintF, GG, IG>
+impl<C, I, GG, IG, W>
+    crate::commitment::CommitmentGadget<PedersenCommCompressor<C, I, W>, GG::ConstraintF>
+    for CommitmentCompressorGadget<C, I, W, GG, IG>
 where
-    G: Group,
-    I: InjectiveMap<G>,
-    ConstraintF: PrimeField,
-    GG: GroupGadget<G, ConstraintF>,
-    IG: InjectiveMapGadget<G, I, ConstraintF, GG>,
-    W: PedersenWindow,
+    C: ProjectiveCurve,
+    I: InjectiveMap<C>,
+    GG: GroupVar<C>,
+    <GG as GroupVar<C>>::ConstraintF: PrimeField,
+    IG: InjectiveMapGadget<C, I, GG>,
+    W: Window,
+    for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
 {
-    type OutputGadget = IG::OutputGadget;
-    type ParametersGadget = PedersenCommitmentGadgetParameters<G, W, ConstraintF>;
-    type RandomnessGadget = PedersenRandomnessGadget;
+    type OutputVar = IG::OutputVar;
+    type ParametersVar = ParametersVar<C, GG>;
+    type RandomnessVar = RandomnessVar<GG::ConstraintF>;
 
-    fn check_commitment_gadget<CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        parameters: &Self::ParametersGadget,
-        input: &[UInt8],
-        r: &Self::RandomnessGadget,
-    ) -> Result<Self::OutputGadget, SynthesisError> {
-        let result = PedersenCommitmentGadget::<G, ConstraintF, GG>::check_commitment_gadget(
-            cs.ns(|| "PedersenComm"),
-            parameters,
-            input,
-            r,
-        )?;
-        IG::evaluate_map(cs.ns(|| "InjectiveMap"), &result)
+    fn commit(
+        parameters: &Self::ParametersVar,
+        input: &[UInt8<GG::ConstraintF>],
+        r: &Self::RandomnessVar,
+    ) -> Result<Self::OutputVar, SynthesisError> {
+        let result = CommGadget::<C, GG, W>::commit(parameters, input, r)?;
+        IG::evaluate(&result)
     }
 }

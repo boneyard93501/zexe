@@ -15,11 +15,11 @@ pub(crate) use alloc::{borrow::ToOwned, boxed::Box, vec::Vec};
 #[cfg(feature = "std")]
 pub(crate) use std::{borrow::ToOwned, boxed::Box, vec::Vec};
 
-// pub mod commitment;
+pub mod commitment;
 pub mod crh;
 // pub mod merkle_tree;
 // pub mod nizk;
-// pub mod prf;
+pub mod prf;
 // pub mod signature;
 
 pub use self::crh::FixedLengthCRH;
