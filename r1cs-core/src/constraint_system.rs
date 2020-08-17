@@ -560,8 +560,17 @@ impl<F: Field> ConstraintSystemRef<F> {
         Func: FnOnce() -> Result<F, SynthesisError>,
     {
         self.inner()
-            .ok_or(SynthesisError::AssignmentMissing)
-            .and_then(|cs| cs.borrow_mut().new_input_variable(f))
+            .ok_or(SynthesisError::MissingCS)
+            .and_then(|cs| {
+                if !self.is_in_setup_mode() {
+                    // This is needed to avoid double-borrows, because `f`
+                    // might itself mutably borrow `cs` (eg: `f = || g.value()`).
+                    let value = f();
+                    cs.borrow_mut().new_input_variable(|| value)
+                } else {
+                    cs.borrow_mut().new_input_variable(f)
+                }
+            })
     }
 
     /// Obtain a variable representing a new private witness input.
@@ -572,7 +581,16 @@ impl<F: Field> ConstraintSystemRef<F> {
     {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
-            .and_then(|cs| cs.borrow_mut().new_witness_variable(f))
+            .and_then(|cs| {
+                if !self.is_in_setup_mode() {
+                    // This is needed to avoid double-borrows, because `f`
+                    // might itself mutably borrow `cs` (eg: `f = || g.value()`).
+                    let value = f();
+                    cs.borrow_mut().new_witness_variable(|| value)
+                } else {
+                    cs.borrow_mut().new_witness_variable(f)
+                }
+        })
     }
 
     /// Obtain a variable representing a linear combination.
