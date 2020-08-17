@@ -185,7 +185,7 @@ pub(crate) mod tests {
     #[allow(dead_code)]
     pub(crate) fn field_test<F: Field, AF: FieldVar<F>>() -> Result<(), SynthesisError>
     where
-        AF: crate::select::TwoBitLookupGadget<<AF as FieldVar<F>>::ConstraintF, TableConstant = F>,
+        AF: TwoBitLookupGadget<<AF as FieldVar<F>>::ConstraintF, TableConstant = F>,
         for<'a> &'a AF: FieldOpsBounds<'a, F, AF>,
     {
         let cs = ConstraintSystem::<AF::ConstraintF>::new_ref();

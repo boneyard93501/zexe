@@ -32,10 +32,29 @@ impl<F: Field> AllocatedBit<F> {
         self.variable
     }
 
+    /// Allocate a witness variable without a booleanity check.
+    fn new_witness_without_booleanity_check<T: Borrow<bool>>(
+        cs: ConstraintSystemRef<F>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+    ) -> Result<Self, SynthesisError> {
+        let mut value = None;
+        let variable = cs.new_witness_variable(|| {
+            value = Some(*f()?.borrow());
+            value.get().map(bool_to_field)
+        })?;
+        Ok(Self {
+            value,
+            variable,
+            cs,
+        })
+    }
+
     /// Performs an XOR operation over the two operands, returning
     /// an `AllocatedBit`.
     pub fn xor(&self, b: &Self) -> Result<Self, SynthesisError> {
-        let result = Self::new_witness(self.cs.clone(), || Ok(self.value()? ^ b.value()?))?;
+        let result = Self::new_witness_without_booleanity_check(self.cs.clone(), || {
+            Ok(self.value()? ^ b.value()?)
+        })?;
 
         // Constrain (a + a) * (b) = (a + b - c)
         // Given that a and b are boolean constrained, if they
@@ -64,7 +83,9 @@ impl<F: Field> AllocatedBit<F> {
     /// Performs an AND operation over the two operands, returning
     /// an `AllocatedBit`.
     pub fn and(&self, b: &Self) -> Result<Self, SynthesisError> {
-        let result = Self::new_witness(self.cs.clone(), || Ok(self.value()? & b.value()?))?;
+        let result = Self::new_witness_without_booleanity_check(self.cs.clone(), || {
+            Ok(self.value()? & b.value()?)
+        })?;
 
         // Constrain (a) * (b) = (c), ensuring c is 1 iff
         // a AND b are both 1.
@@ -80,7 +101,9 @@ impl<F: Field> AllocatedBit<F> {
     /// Performs an OR operation over the two operands, returning
     /// an `AllocatedBit`.
     pub fn or(&self, b: &Self) -> Result<Self, SynthesisError> {
-        let result = Self::new_witness(self.cs.clone(), || Ok(self.value()? | b.value()?))?;
+        let result = Self::new_witness_without_booleanity_check(self.cs.clone(), || {
+            Ok(self.value()? | b.value()?)
+        })?;
 
         // Constrain (1 - a) * (1 - b) = (c), ensuring c is 1 iff
         // a and b are both false, and otherwise c is 0.
@@ -95,7 +118,9 @@ impl<F: Field> AllocatedBit<F> {
 
     /// Calculates `a AND (NOT b)`.
     pub fn and_not(&self, b: &Self) -> Result<Self, SynthesisError> {
-        let result = Self::new_witness(self.cs.clone(), || Ok(self.value()? & !b.value()?))?;
+        let result = Self::new_witness_without_booleanity_check(self.cs.clone(), || {
+            Ok(self.value()? & !b.value()?)
+        })?;
 
         // Constrain (a) * (1 - b) = (c), ensuring c is 1 iff
         // a is true and b is false, and otherwise c is 0.
@@ -110,7 +135,9 @@ impl<F: Field> AllocatedBit<F> {
 
     /// Calculates `(NOT a) AND (NOT b)`.
     pub fn nor(&self, b: &Self) -> Result<Self, SynthesisError> {
-        let result = Self::new_witness(self.cs.clone(), || Ok(!(self.value()? | b.value()?)))?;
+        let result = Self::new_witness_without_booleanity_check(self.cs.clone(), || {
+            Ok(!(self.value()? | b.value()?))
+        })?;
 
         // Constrain (1 - a) * (1 - b) = (c), ensuring c is 1 iff
         // a and b are both false, and otherwise c is 0.
@@ -596,15 +623,31 @@ impl<F: Field> CondSelectGadget<F> for Boolean<F> {
                 (x, &Constant(true)) => cond.not().or(x),
                 (a, b) => {
                     let cs = cond.cs().unwrap();
-                    let result = Boolean::new_witness(cs.clone(), || {
-                        let cond = cond.value()?;
-                        Ok(if cond { a.value()? } else { b.value()? })
-                    })?;
+                    let result: Boolean<F> =
+                        AllocatedBit::new_witness_without_booleanity_check(cs.clone(), || {
+                            let cond = cond.value()?;
+                            Ok(if cond { a.value()? } else { b.value()? })
+                        })?
+                        .into();
+                    //
                     // a = self; b = other; c = cond;
                     //
                     // r = c * a + (1  - c) * b
                     // r = b + c * (a - b)
                     // c * (a - b) = r - b
+                    //
+                    // If a, b, cond are all boolean, so is r.
+                    //
+                    // self | other | cond | result
+                    // -----|-------|----------------
+                    //   0  |   0   |   1  |    0
+                    //   0  |   1   |   1  |    0
+                    //   1  |   0   |   1  |    1
+                    //   1  |   1   |   1  |    1
+                    //   0  |   0   |   0  |    0
+                    //   0  |   1   |   0  |    1
+                    //   1  |   0   |   0  |    0
+                    //   1  |   1   |   0  |    1
                     cs.enforce_constraint(
                         cond.lc(),
                         lc!() + a.lc() - b.lc(),
@@ -1014,7 +1057,7 @@ mod test {
     }
 
     #[test]
-    fn test_boolean_cond_select() -> Result<(), r1cs_core::SynthesisError> {
+    fn test_boolean_cond_select() -> Result<(), SynthesisError> {
         for condition in VARIANTS.iter().cloned() {
             for first_operand in VARIANTS.iter().cloned() {
                 for second_operand in VARIANTS.iter().cloned() {
