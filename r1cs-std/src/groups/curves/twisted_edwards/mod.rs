@@ -262,7 +262,7 @@ where
     }
 }
 
-impl<P, F> GroupVar<TEProjective<P>> for AffineVar<P, F>
+impl<P, F> CurveVar<TEProjective<P>> for AffineVar<P, F>
 where
     P: TEModelParameters,
     F: FieldVar<P::BaseField>
@@ -618,6 +618,26 @@ where
     }
 }
 
+impl<P, F> AllocVar<TEAffine<P>, F::ConstraintF> for AffineVar<P, F>
+where
+    P: TEModelParameters,
+    F: FieldVar<P::BaseField>
+        + TwoBitLookupGadget<<F as FieldVar<P::BaseField>>::ConstraintF, TableConstant = P::BaseField>
+        + ThreeBitCondNegLookupGadget<
+            <F as FieldVar<P::BaseField>>::ConstraintF,
+            TableConstant = P::BaseField,
+        >,
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
+{
+    fn new_variable<Point: Borrow<TEAffine<P>>>(
+        cs: impl Into<Namespace<F::ConstraintF>>,
+        f: impl FnOnce() -> Result<Point, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        Self::new_variable(cs, || f().map(|b| b.borrow().into_projective()), mode)
+    }
+}
+
 #[inline]
 fn div2(limbs: &mut [u64]) {
     let mut t = 0;
@@ -844,7 +864,7 @@ where
 pub(crate) fn test<P, GG>() -> Result<(), SynthesisError>
 where
     P: TEModelParameters,
-    GG: GroupVar<TEProjective<P>>,
+    GG: CurveVar<TEProjective<P>>,
     for<'a> &'a GG: GroupOpsBounds<'a, TEProjective<P>, GG>,
 {
     use crate::prelude::*;

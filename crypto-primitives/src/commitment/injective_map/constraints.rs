@@ -10,7 +10,7 @@ pub use crate::crh::injective_map::constraints::InjectiveMapGadget;
 use algebra_core::{PrimeField, ProjectiveCurve};
 use r1cs_core::SynthesisError;
 use r1cs_std::{
-    groups::{GroupOpsBounds, GroupVar},
+    groups::{CurveVar, GroupOpsBounds},
     uint8::UInt8,
 };
 
@@ -21,7 +21,7 @@ where
     C: ProjectiveCurve,
     I: InjectiveMap<C>,
     W: Window,
-    GG: GroupVar<C>,
+    GG: CurveVar<C>,
     IG: InjectiveMapGadget<C, I, GG>,
     for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
 {
@@ -36,8 +36,8 @@ impl<C, I, GG, IG, W>
 where
     C: ProjectiveCurve,
     I: InjectiveMap<C>,
-    GG: GroupVar<C>,
-    <GG as GroupVar<C>>::ConstraintF: PrimeField,
+    GG: CurveVar<C>,
+    <GG as CurveVar<C>>::ConstraintF: PrimeField,
     IG: InjectiveMapGadget<C, I, GG>,
     W: Window,
     for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,

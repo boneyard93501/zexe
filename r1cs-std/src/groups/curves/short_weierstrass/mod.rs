@@ -185,7 +185,7 @@ where
     }
 }
 
-impl<P, F> GroupVar<SWProjective<P>> for ProjectiveVar<P, F>
+impl<P, F> CurveVar<SWProjective<P>> for ProjectiveVar<P, F>
 where
     P: SWModelParameters,
     F: FieldVar<P::BaseField>,
@@ -470,6 +470,21 @@ where
     }
 }
 
+impl<P, F> AllocVar<SWAffine<P>, F::ConstraintF> for ProjectiveVar<P, F>
+where
+    P: SWModelParameters,
+    F: FieldVar<P::BaseField>,
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
+{
+    fn new_variable<T: Borrow<SWAffine<P>>>(
+        cs: impl Into<Namespace<F::ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        Self::new_variable(cs, || f().map(|b| b.borrow().into_projective()), mode)
+    }
+}
+
 impl<P, F> AllocVar<SWProjective<P>, F::ConstraintF> for ProjectiveVar<P, F>
 where
     P: SWModelParameters,
@@ -639,7 +654,7 @@ where
 pub(crate) fn test<P, GG>() -> Result<(), SynthesisError>
 where
     P: SWModelParameters,
-    GG: GroupVar<SWProjective<P>>,
+    GG: CurveVar<SWProjective<P>>,
     for<'a> &'a GG: GroupOpsBounds<'a, SWProjective<P>, GG>,
 {
     use crate::prelude::*;

@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use algebra::{Field, Group};
+use algebra::{Field, ProjectiveCurve};
 use core::ops::{Add, AddAssign, Sub, SubAssign};
 use r1cs_core::{Namespace, SynthesisError};
 
@@ -23,30 +23,31 @@ pub trait GroupOpsBounds<'a, F, T: 'a>:
 {
 }
 
-pub trait GroupVar<G: Group>:
+pub trait CurveVar<C: ProjectiveCurve>:
     'static
     + Sized
     + Clone
     + Debug
-    + R1CSVar<<Self as GroupVar<G>>::ConstraintF, Value = G>
-    + ToBitsGadget<<Self as GroupVar<G>>::ConstraintF>
-    + ToBytesGadget<<Self as GroupVar<G>>::ConstraintF>
-    + EqGadget<<Self as GroupVar<G>>::ConstraintF>
-    + CondSelectGadget<<Self as GroupVar<G>>::ConstraintF>
-    + AllocVar<G, <Self as GroupVar<G>>::ConstraintF>
-    + for<'a> GroupOpsBounds<'a, G, Self>
+    + R1CSVar<<Self as CurveVar<C>>::ConstraintF, Value = C>
+    + ToBitsGadget<<Self as CurveVar<C>>::ConstraintF>
+    + ToBytesGadget<<Self as CurveVar<C>>::ConstraintF>
+    + EqGadget<<Self as CurveVar<C>>::ConstraintF>
+    + CondSelectGadget<<Self as CurveVar<C>>::ConstraintF>
+    + AllocVar<C, <Self as CurveVar<C>>::ConstraintF>
+    + AllocVar<C::Affine, <Self as CurveVar<C>>::ConstraintF>
+    + for<'a> GroupOpsBounds<'a, C, Self>
     + for<'a> AddAssign<&'a Self>
     + for<'a> SubAssign<&'a Self>
     + AddAssign<Self>
     + SubAssign<Self>
-    + AddAssign<G>
-    + SubAssign<G>
+    + AddAssign<C>
+    + SubAssign<C>
 where
-    for<'a> &'a Self: GroupOpsBounds<'a, G, Self>,
+    for<'a> &'a Self: GroupOpsBounds<'a, C, Self>,
 {
     type ConstraintF: Field;
 
-    fn constant(other: G) -> Self;
+    fn constant(other: C) -> Self;
 
     fn zero() -> Self;
 
@@ -58,7 +59,7 @@ where
     /// prime-order subgroup
     fn new_variable_omit_prime_order_check(
         cs: impl Into<Namespace<Self::ConstraintF>>,
-        f: impl FnOnce() -> Result<G, SynthesisError>,
+        f: impl FnOnce() -> Result<C, SynthesisError>,
         mode: AllocationMode,
     ) -> Result<Self, SynthesisError>;
 
@@ -97,9 +98,9 @@ where
         scalar_bits_with_base_powers: I,
     ) -> Result<(), SynthesisError>
     where
-        I: Iterator<Item = (B, &'a G)>,
+        I: Iterator<Item = (B, &'a C)>,
         B: Borrow<Boolean<Self::ConstraintF>>,
-        G: 'a,
+        C: 'a,
     {
         for (bit, base_power) in scalar_bits_with_base_powers {
             let new_encoded = &*self + *base_power;
@@ -115,7 +116,7 @@ where
     where
         I: Borrow<[Boolean<Self::ConstraintF>]>,
         J: Borrow<[I]>,
-        B: Borrow<[G]>,
+        B: Borrow<[C]>,
     {
         Err(SynthesisError::AssignmentMissing)
     }
@@ -127,7 +128,7 @@ where
     where
         T: 'a + ToBitsGadget<Self::ConstraintF> + ?Sized,
         I: Iterator<Item = &'a T>,
-        B: Borrow<[G]>,
+        B: Borrow<[C]>,
     {
         let mut result = Self::zero();
         // Compute ∏(h_i^{m_i}) for all i.
@@ -142,21 +143,20 @@ where
 
 #[cfg(test)]
 mod test {
-    use algebra::test_rng;
+    use algebra::{test_rng, ProjectiveCurve};
     use r1cs_core::{ConstraintSystem, SynthesisError};
 
     use crate::prelude::*;
-    use algebra::groups::Group;
 
-    pub(crate) fn group_test<G: Group, GG: GroupVar<G>>() -> Result<(), SynthesisError>
+    pub(crate) fn group_test<C: ProjectiveCurve, GG: CurveVar<C>>() -> Result<(), SynthesisError>
     where
-        for<'a> &'a GG: GroupOpsBounds<'a, G, GG>,
+        for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
     {
         let cs = ConstraintSystem::<GG::ConstraintF>::new_ref();
 
         let mut rng = test_rng();
-        let a_native = G::rand(&mut rng);
-        let b_native = G::rand(&mut rng);
+        let a_native = C::rand(&mut rng);
+        let b_native = C::rand(&mut rng);
         let a = GG::new_witness(cs.ns("generate_a"), || Ok(a_native)).unwrap();
         let b = GG::new_witness(cs.ns("generate_b"), || Ok(b_native)).unwrap();
 

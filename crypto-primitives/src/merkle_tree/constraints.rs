@@ -23,6 +23,7 @@ where
     P: Config,
     ConstraintF: Field,
     CRHGadget: FixedLengthCRHGadget<P::H, ConstraintF>,
+    <CRHGadget::OutputVar as R1CSVar<ConstraintF>>::Value: PartialEq,
 {
     pub fn check_membership(
         &self,
@@ -53,7 +54,7 @@ where
 
         // Check if leaf is one of the bottom-most siblings.
         let leaf_is_left = Boolean::new_witness(cs.ns("leaf_is_left"), || {
-            Ok(leaf_hash.value()? == self.path[0].0.value()?)
+            Ok(leaf_hash.value()?.eq(&self.path[0].0.value()?))
         })?;
 
         leaf_hash.conditional_enforce_equal_or(
@@ -65,21 +66,28 @@ where
 
         // Check levels between leaf level and root.
         let mut previous_hash = leaf_hash;
+        let mut i = 0;
         for &(ref left_hash, ref right_hash) in &self.path {
             // Check if the previous_hash matches the correct current hash.
             let previous_is_left = Boolean::new_witness(cs.ns("previous_is_left"), || {
-                Ok(previous_hash.value()? == left_hash.value()?)
+                Ok(previous_hash.value()?.eq(&left_hash.value()?))
             })?;
 
+            let ns = cs.ns(format!(
+                "enforcing that inner hash is correct at i-th level{}",
+                i
+            ));
             previous_hash.conditional_enforce_equal_or(
                 &previous_is_left,
                 left_hash,
                 right_hash,
                 should_enforce,
             )?;
+            drop(ns);
 
             previous_hash =
                 hash_inner_node::<P::H, CRHGadget, ConstraintF>(parameters, left_hash, right_hash)?;
+            i += 1;
         }
 
         root.conditional_enforce_equal(&previous_hash, should_enforce)
@@ -214,7 +222,11 @@ mod test {
             println!("constraints from leaf: {}", constraints_from_leaf);
 
             // Allocate Merkle Tree Path
-            let cw = PathVar::<_, HG, _>::new_witness(cs.ns("new_witness"), || Ok(proof)).unwrap();
+            let cw = PathVar::<_, HG, _>::new_witness(cs.ns("new_witness"), || Ok(&proof)).unwrap();
+            for (i, (l, r)) in cw.path.iter().enumerate() {
+                assert_eq!(l.value().unwrap(), proof.path[i].0);
+                assert_eq!(r.value().unwrap(), proof.path[i].1);
+            }
 
             let constraints_from_path = cs.num_constraints()
                 - constraints_from_parameters

@@ -88,7 +88,7 @@ pub mod prelude {
         bits::{boolean::Boolean, uint32::UInt32, uint8::UInt8, ToBitsGadget, ToBytesGadget},
         eq::*,
         fields::{FieldOpsBounds, FieldVar},
-        groups::{GroupOpsBounds, GroupVar},
+        groups::{CurveVar, GroupOpsBounds},
         instantiated::*,
         pairing::PairingVar,
         select::*,
@@ -97,7 +97,7 @@ pub mod prelude {
 }
 
 pub trait R1CSVar<F: Field> {
-    type Value;
+    type Value: core::fmt::Debug + Eq + Clone;
 
     /// Returns the underlying `ConstraintSystemRef`.
     fn cs(&self) -> Option<r1cs_core::ConstraintSystemRef<F>>;

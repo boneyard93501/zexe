@@ -17,7 +17,7 @@ where
     // TODO: there are some ugly hacks here where we have to reproduce the bounds
     // unnecessarily. Maybe there's an issue tracking this?
 
-    type G1Var: GroupVar<E::G1Projective, ConstraintF = Self::ConstraintF>
+    type G1Var: CurveVar<E::G1Projective, ConstraintF = Self::ConstraintF>
         + R1CSVar<Self::ConstraintF, Value = E::G1Projective>
         + EqGadget<Self::ConstraintF>
         + ToBitsGadget<Self::ConstraintF>
@@ -25,7 +25,7 @@ where
         + ToBytesGadget<Self::ConstraintF>
         + CondSelectGadget<Self::ConstraintF>;
 
-    type G2Var: GroupVar<E::G2Projective, ConstraintF = Self::ConstraintF>
+    type G2Var: CurveVar<E::G2Projective, ConstraintF = Self::ConstraintF>
         + R1CSVar<Self::ConstraintF, Value = E::G2Projective>
         + EqGadget<Self::ConstraintF>
         + ToBitsGadget<Self::ConstraintF>

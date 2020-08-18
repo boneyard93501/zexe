@@ -1,5 +1,5 @@
 use crate::{crh::FixedLengthCRH, Vec};
-use algebra_core::{bytes::ToBytes, io::Cursor};
+use algebra_core::bytes::ToBytes;
 use core::fmt;
 
 #[cfg(feature = "r1cs")]
@@ -128,6 +128,7 @@ impl<P: Config> MerkleTree<P> {
             level_indices.push(index);
             index = left_child(index);
         }
+        println!("Here 1");
 
         // Compute and store the hash values for each leaf.
         let last_level_index = level_indices.pop().unwrap_or(0);
@@ -135,6 +136,7 @@ impl<P: Config> MerkleTree<P> {
         for (i, leaf) in leaves.iter().enumerate() {
             tree[last_level_index + i] = hash_leaf::<P::H, _>(&parameters, leaf, &mut buffer)?;
         }
+        println!("Here 2");
 
         // Compute the hash values for every node in the tree.
         let mut upper_bound = last_level_index;
@@ -332,13 +334,10 @@ pub(crate) fn hash_inner_node<H: FixedLengthCRH>(
     right: &H::Output,
     buffer: &mut [u8],
 ) -> Result<H::Output, crate::Error> {
-    let mut writer = Cursor::new(&mut *buffer);
-    // Construct left input.
-    left.write(&mut writer)?;
-
-    // Construct right input.
-    right.write(&mut writer)?;
-
+    let bytes = algebra_core::to_bytes![left]?
+        .into_iter()
+        .chain(algebra_core::to_bytes![right]?);
+    buffer.iter_mut().zip(bytes).for_each(|(b, l_b)| *b = l_b);
     H::evaluate(parameters, &buffer[..(H::INPUT_SIZE_BITS / 8)])
 }
 
@@ -348,9 +347,10 @@ pub(crate) fn hash_leaf<H: FixedLengthCRH, L: ToBytes>(
     leaf: &L,
     buffer: &mut [u8],
 ) -> Result<H::Output, crate::Error> {
-    let mut writer = Cursor::new(&mut *buffer);
-    leaf.write(&mut writer)?;
-
+    buffer
+        .iter_mut()
+        .zip(&algebra_core::to_bytes![leaf]?)
+        .for_each(|(b, l_b)| *b = *l_b);
     H::evaluate(parameters, &buffer[..(H::INPUT_SIZE_BITS / 8)])
 }
 
@@ -433,7 +433,7 @@ mod test {
 
         let crh_parameters = H::setup(&mut rng).unwrap();
         let tree = JubJubMerkleTree::new(crh_parameters.clone(), &leaves).unwrap();
-        let root = JubJub::zero();
+        let root = JubJub::zero().into();
         for (i, leaf) in leaves.iter().enumerate() {
             let proof = tree.generate_proof(i, &leaf).unwrap();
             assert!(proof.verify(&crh_parameters, &root, &leaf).unwrap());

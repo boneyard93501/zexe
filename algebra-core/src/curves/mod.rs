@@ -94,6 +94,7 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
 /// in the correct prime order subgroup.
 pub trait ProjectiveCurve:
     Eq
+    + PartialEq<<Self as ProjectiveCurve>::Affine>
     + 'static
     + Sized
     + ToBytes
@@ -204,6 +205,7 @@ pub trait ProjectiveCurve:
 /// in the correct prime order subgroup.
 pub trait AffineCurve:
     Eq
+    + PartialEq<<Self as AffineCurve>::Projective>
     + 'static
     + Sized
     + ToBytes

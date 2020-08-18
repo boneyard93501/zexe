@@ -47,7 +47,7 @@ impl<C: ProjectiveCurve> ToBytes for Randomness<C> {
 impl<C: ProjectiveCurve, W: Window> CommitmentScheme for Commitment<C, W> {
     type Parameters = Parameters<C>;
     type Randomness = Randomness<C>;
-    type Output = C;
+    type Output = C::Affine;
 
     fn setup<R: Rng>(rng: &mut R) -> Result<Self::Parameters, Error> {
         let time = start_timer!(|| format!(
@@ -112,7 +112,7 @@ impl<C: ProjectiveCurve, W: Window> CommitmentScheme for Commitment<C, W> {
         end_timer!(randomize_time);
         end_timer!(commit_time);
 
-        Ok(result)
+        Ok(result.into())
     }
 }
 

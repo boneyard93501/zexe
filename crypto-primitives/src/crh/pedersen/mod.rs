@@ -51,7 +51,7 @@ impl<C: ProjectiveCurve, W: Window> CRH<C, W> {
 
 impl<C: ProjectiveCurve, W: Window> FixedLengthCRH for CRH<C, W> {
     const INPUT_SIZE_BITS: usize = W::WINDOW_SIZE * W::NUM_WINDOWS;
-    type Output = C;
+    type Output = C::Affine;
     type Parameters = Parameters<C>;
 
     fn setup<R: Rng>(rng: &mut R) -> Result<Self::Parameters, Error> {

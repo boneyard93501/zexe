@@ -6,7 +6,7 @@ use rand::Rng;
 use super::{pedersen, FixedLengthCRH};
 use algebra_core::curves::{
     models::{ModelParameters, TEModelParameters},
-    twisted_edwards_extended::GroupProjective as TEProjective,
+    twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
     ProjectiveCurve,
 };
 
@@ -16,7 +16,7 @@ pub mod constraints;
 pub trait InjectiveMap<C: ProjectiveCurve> {
     type Output: ToBytes + Clone + Eq + Hash + Default + Debug;
 
-    fn injective_map(ge: &C) -> Result<Self::Output, CryptoError>;
+    fn injective_map(ge: &C::Affine) -> Result<Self::Output, CryptoError>;
 }
 
 pub struct TECompressor;
@@ -24,8 +24,7 @@ pub struct TECompressor;
 impl<P: TEModelParameters> InjectiveMap<TEProjective<P>> for TECompressor {
     type Output = <P as ModelParameters>::BaseField;
 
-    fn injective_map(ge: &TEProjective<P>) -> Result<Self::Output, CryptoError> {
-        let ge = ge.into_affine();
+    fn injective_map(ge: &TEAffine<P>) -> Result<Self::Output, CryptoError> {
         debug_assert!(ge.is_in_correct_subgroup_assuming_on_curve());
         Ok(ge.x)
     }

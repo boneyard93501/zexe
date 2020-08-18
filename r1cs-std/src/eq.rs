@@ -119,7 +119,7 @@ where
         second: &Self,
         should_enforce: &Boolean<ConstraintF>,
     ) -> Result<(), SynthesisError> {
-        let match_opt = Self::conditionally_select(cond, first, second)?;
+        let match_opt = cond.select(first, second)?;
         self.conditional_enforce_equal(&match_opt, should_enforce)
     }
 }

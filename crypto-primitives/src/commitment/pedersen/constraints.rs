@@ -13,8 +13,8 @@ use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_std::prelude::*;
 
 #[derive(Derivative)]
-#[derivative(Clone(bound = "C: ProjectiveCurve, GG: GroupVar<C>"))]
-pub struct ParametersVar<C: ProjectiveCurve, GG: GroupVar<C>>
+#[derivative(Clone(bound = "C: ProjectiveCurve, GG: CurveVar<C>"))]
+pub struct ParametersVar<C: ProjectiveCurve, GG: CurveVar<C>>
 where
     for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
 {
@@ -26,7 +26,7 @@ where
 #[derive(Clone, Debug)]
 pub struct RandomnessVar<F: Field>(Vec<UInt8<F>>);
 
-pub struct CommGadget<C: ProjectiveCurve, GG: GroupVar<C>, W: Window>
+pub struct CommGadget<C: ProjectiveCurve, GG: CurveVar<C>, W: Window>
 where
     for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
 {
@@ -42,10 +42,10 @@ impl<C, GG, W> crate::commitment::CommitmentGadget<Commitment<C, W>, GG::Constra
     for CommGadget<C, GG, W>
 where
     C: ProjectiveCurve,
-    GG: GroupVar<C>,
+    GG: CurveVar<C>,
     W: Window,
     for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
-    <GG as GroupVar<C>>::ConstraintF: PrimeField,
+    <GG as CurveVar<C>>::ConstraintF: PrimeField,
 {
     type OutputVar = GG;
     type ParametersVar = ParametersVar<C, GG>;
@@ -94,7 +94,7 @@ where
 impl<C, GG> AllocVar<Parameters<C>, GG::ConstraintF> for ParametersVar<C, GG>
 where
     C: ProjectiveCurve,
-    GG: GroupVar<C>,
+    GG: CurveVar<C>,
     for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
 {
     fn new_variable<T: Borrow<Parameters<C>>>(
@@ -133,7 +133,7 @@ where
 mod test {
     use algebra::{
         ed_on_bls12_381::{EdwardsProjective as JubJub, Fq, Fr},
-        test_rng, ProjectiveCurve, UniformRand,
+        test_rng, UniformRand,
     };
 
     use crate::{
@@ -191,8 +191,8 @@ mod test {
         let result_var =
             TestCOMMGadget::commit(&parameters_var, &input_var, &randomness_var).unwrap();
 
-        let primitive_result = primitive_result.into_affine();
-        assert_eq!(primitive_result, result_var.value().unwrap().into_affine());
+        let primitive_result = primitive_result;
+        assert_eq!(primitive_result, result_var.value().unwrap());
         assert!(cs.is_satisfied().unwrap());
     }
 }

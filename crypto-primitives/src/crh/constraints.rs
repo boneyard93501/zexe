@@ -11,7 +11,7 @@ pub trait FixedLengthCRHGadget<H: FixedLengthCRH, ConstraintF: Field>: Sized {
         + ToBytesGadget<ConstraintF>
         + CondSelectGadget<ConstraintF>
         + AllocVar<H::Output, ConstraintF>
-        + R1CSVar<ConstraintF, Value = H::Output>
+        + R1CSVar<ConstraintF>
         + Debug
         + Clone
         + Sized;

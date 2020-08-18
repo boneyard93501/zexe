@@ -8,7 +8,7 @@ pub trait CommitmentGadget<C: CommitmentScheme, ConstraintF: Field> {
     type OutputVar: EqGadget<ConstraintF>
         + ToBytesGadget<ConstraintF>
         + AllocVar<C::Output, ConstraintF>
-        + R1CSVar<ConstraintF, Value = C::Output>
+        + R1CSVar<ConstraintF>
         + Clone
         + Sized
         + Debug;

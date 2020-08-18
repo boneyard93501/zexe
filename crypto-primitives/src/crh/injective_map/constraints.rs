@@ -17,11 +17,11 @@ use algebra_core::{
 use r1cs_core::SynthesisError;
 use r1cs_std::{
     fields::fp::FpVar,
-    groups::{curves::twisted_edwards::AffineVar as TEVar, GroupVar},
+    groups::{curves::twisted_edwards::AffineVar as TEVar, CurveVar},
     prelude::*,
 };
 
-pub trait InjectiveMapGadget<C: ProjectiveCurve, I: InjectiveMap<C>, GG: GroupVar<C>>
+pub trait InjectiveMapGadget<C: ProjectiveCurve, I: InjectiveMap<C>, GG: CurveVar<C>>
 where
     for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
 {
@@ -57,7 +57,7 @@ where
     C: ProjectiveCurve,
     I: InjectiveMap<C>,
     W: Window,
-    GG: GroupVar<C>,
+    GG: CurveVar<C>,
     for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
     IG: InjectiveMapGadget<C, I, GG>,
 {
@@ -74,7 +74,7 @@ impl<C, I, GG, IG, W> FixedLengthCRHGadget<PedersenCRHCompressor<C, I, W>, GG::C
 where
     C: ProjectiveCurve,
     I: InjectiveMap<C>,
-    GG: GroupVar<C>,
+    GG: CurveVar<C>,
     for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
     IG: InjectiveMapGadget<C, I, GG>,
     W: Window,

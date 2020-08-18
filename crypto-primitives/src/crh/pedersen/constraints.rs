@@ -12,8 +12,8 @@ use r1cs_std::prelude::*;
 use core::{borrow::Borrow, marker::PhantomData};
 
 #[derive(Derivative)]
-#[derivative(Clone(bound = "C: ProjectiveCurve, GG: GroupVar<C>"))]
-pub struct CRHParametersVar<C: ProjectiveCurve, GG: GroupVar<C>>
+#[derivative(Clone(bound = "C: ProjectiveCurve, GG: CurveVar<C>"))]
+pub struct CRHParametersVar<C: ProjectiveCurve, GG: CurveVar<C>>
 where
     for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
 {
@@ -22,7 +22,7 @@ where
     _group_g: PhantomData<GG>,
 }
 
-pub struct CRHGadget<C: ProjectiveCurve, GG: GroupVar<C>, W: Window>
+pub struct CRHGadget<C: ProjectiveCurve, GG: CurveVar<C>, W: Window>
 where
     for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
 {
@@ -37,7 +37,7 @@ where
 impl<C, GG, W> FixedLengthCRHGadget<CRH<C, W>, GG::ConstraintF> for CRHGadget<C, GG, W>
 where
     C: ProjectiveCurve,
-    GG: GroupVar<C>,
+    GG: CurveVar<C>,
     W: Window,
     for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
 {
@@ -72,7 +72,7 @@ where
 impl<C, GG> AllocVar<Parameters<C>, GG::ConstraintF> for CRHParametersVar<C, GG>
 where
     C: ProjectiveCurve,
-    GG: GroupVar<C>,
+    GG: CurveVar<C>,
     for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
 {
     fn new_variable<T: Borrow<Parameters<C>>>(
@@ -93,7 +93,7 @@ mod test {
     use crate::crh::{pedersen, pedersen::constraints::*, FixedLengthCRH, FixedLengthCRHGadget};
     use algebra::{
         ed_on_bls12_381::{EdwardsProjective as JubJub, Fq as Fr},
-        test_rng, ProjectiveCurve,
+        test_rng,
     };
     use r1cs_core::{ConstraintSystem, ConstraintSystemRef};
     use r1cs_std::ed_on_bls12_381::EdwardsVar;
@@ -137,13 +137,10 @@ mod test {
         let parameters_var =
             CRHParametersVar::new_constant(cs.ns("CRH Parameters"), &parameters).unwrap();
 
-        let gadget_result = TestCRHGadget::evaluate(&parameters_var, &input_var).unwrap();
+        let result_var = TestCRHGadget::evaluate(&parameters_var, &input_var).unwrap();
 
-        let primitive_result = primitive_result.into_affine();
-        assert_eq!(
-            primitive_result,
-            gadget_result.value().unwrap().into_affine()
-        );
+        let primitive_result = primitive_result;
+        assert_eq!(primitive_result, result_var.value().unwrap());
         assert!(cs.is_satisfied().unwrap());
     }
 }
