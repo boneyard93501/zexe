@@ -17,7 +17,10 @@ pub trait EqGadget<F: Field> {
         &self,
         other: &Self,
         should_enforce: &Boolean<F>,
-    ) -> Result<(), SynthesisError>;
+    ) -> Result<(), SynthesisError> {
+        self.is_eq(&other)?
+            .conditional_enforce_equal(&Boolean::constant(true), should_enforce)
+    }
 
     /// Enforce that `self` and `other` are equal.
     fn enforce_equal(&self, other: &Self) -> Result<(), SynthesisError> {
@@ -30,7 +33,10 @@ pub trait EqGadget<F: Field> {
         &self,
         other: &Self,
         should_enforce: &Boolean<F>,
-    ) -> Result<(), SynthesisError>;
+    ) -> Result<(), SynthesisError> {
+        self.is_neq(&other)?
+            .conditional_enforce_equal(&Boolean::constant(true), should_enforce)
+    }
 
     /// Enforce that `self` and `other` are not equal.
     fn enforce_not_equal(&self, other: &Self) -> Result<(), SynthesisError> {

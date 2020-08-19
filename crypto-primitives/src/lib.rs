@@ -20,12 +20,27 @@ pub mod crh;
 pub mod merkle_tree;
 // pub mod nizk;
 pub mod prf;
-// pub mod signature;
+pub mod signature;
 
-pub use self::crh::FixedLengthCRH;
+pub use self::{
+    commitment::CommitmentScheme,
+    crh::FixedLengthCRH,
+    merkle_tree::{MerkleTree, Path},
+    // nizk::NIZK,
+    prf::PRF,
+    signature::SignatureScheme,
+};
 
 #[cfg(feature = "r1cs")]
-pub use self::crh::FixedLengthCRHGadget;
+#[cfg(feature = "r1cs")]
+pub use self::{
+    commitment::CommitmentGadget,
+    crh::FixedLengthCRHGadget,
+    merkle_tree::constraints::PathVar,
+    // nizk::NIZKVerifierGadget,
+    prf::PRFGadget,
+    signature::SigRandomizePkGadget,
+};
 
 pub type Error = Box<dyn algebra_core::Error>;
 

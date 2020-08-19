@@ -128,6 +128,7 @@ pub trait ProjectiveCurve:
     type BaseField: Field;
     type Affine: AffineCurve<Projective = Self, ScalarField = Self::ScalarField, BaseField = Self::BaseField>
         + From<Self>
+        + PartialEq<Self>
         + Into<Self>;
 
     /// Returns a fixed generator of unknown exponent.
@@ -188,7 +189,7 @@ pub trait ProjectiveCurve:
             if found_one {
                 res.double_in_place();
             } else {
-                found_one = i;
+                found_one |= i;
             }
 
             if i {
@@ -230,6 +231,7 @@ pub trait AffineCurve:
     type BaseField: Field;
     type Projective: ProjectiveCurve<Affine = Self, ScalarField = Self::ScalarField, BaseField = Self::BaseField>
         + From<Self>
+        + PartialEq<Self>
         + Into<Self>
         + MulAssign<Self::ScalarField>; // needed due to https://github.com/rust-lang/rust/issues/69640
 
