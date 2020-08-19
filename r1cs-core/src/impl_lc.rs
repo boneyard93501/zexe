@@ -15,7 +15,19 @@ impl<F: Field> LinearCombination<F> {
 
     /// Deduplicate entries in `self`.
     pub fn compactify(&mut self) {
-        unimplemented!()
+        self.0.sort_by_key(|e| e.1);
+        let mut current_var = None;
+        let mut current_var_first_index = 0;
+        for i in 0..self.0.len() {
+            let (f, v) = self.0[i];
+            if Some(v) == current_var {
+                self.0[current_var_first_index].0 += &f;
+            } else {
+                current_var = Some(v);
+                current_var_first_index = i;
+            }
+        }
+        self.0.dedup_by_key(|e| e.1);
     }
 }
 
