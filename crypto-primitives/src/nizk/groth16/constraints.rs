@@ -308,23 +308,22 @@ where
 #[cfg(test)]
 mod test {
     use groth16::*;
-    use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+    use r1cs_core::{
+        lc, ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisError,
+    };
 
     use super::*;
     use algebra::{
         bls12_377::{Bls12_377, Fq, Fr},
-        test_rng, BitIterator, PrimeField,
+        test_rng, BitIterator, Field, PrimeField,
     };
-    use r1cs_std::{
-        bls12_377::PairingVar as Bls12_377PairingVar, boolean::Boolean,
-        test_constraint_system::TestConstraintSystem,
-    };
+    use r1cs_std::{bls12_377::PairingVar as Bls12_377PairingVar, boolean::Boolean, Assignment};
     use rand::Rng;
 
     type TestProofSystem = Groth16<Bls12_377, Bench<Fr>, Fr>;
-    type TestVerifierGadget = Groth16VerifierGadget<Bls12_377, Fq, Bls12_377PairingVar>;
-    type TestProofVar = ProofVar<Bls12_377, Fq, Bls12_377PairingVar>;
-    type TestVkVar = VerifyingKeyVar<Bls12_377, Fq, Bls12_377PairingVar>;
+    type TestVerifierGadget = Groth16VerifierGadget<Bls12_377, Bls12_377PairingVar>;
+    type TestProofVar = ProofVar<Bls12_377, Bls12_377PairingVar>;
+    type TestVkVar = VerifyingKeyVar<Bls12_377, Bls12_377PairingVar>;
 
     struct Bench<F: Field> {
         inputs: Vec<Option<F>>,
@@ -332,19 +331,13 @@ mod test {
     }
 
     impl<F: Field> ConstraintSynthesizer<F> for Bench<F> {
-        fn generate_constraints<CS: ConstraintSystem<F>>(
-            self,
-            cs: &mut CS,
-        ) -> Result<(), SynthesisError> {
+        fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
             assert!(self.inputs.len() >= 2);
             assert!(self.num_constraints >= self.inputs.len());
 
             let mut variables: Vec<_> = Vec::with_capacity(self.inputs.len());
-            for (i, input) in self.inputs.into_iter().enumerate() {
-                let input_var = cs.alloc_input(
-                    || format!("Input {}", i),
-                    || input.ok_or(SynthesisError::AssignmentMissing),
-                )?;
+            for input in self.inputs {
+                let input_var = cs.new_input_variable(|| input.get())?;
                 variables.push((input, input_var));
             }
 
@@ -354,16 +347,16 @@ mod test {
                     let (input_2_val, input_2_var) = variables[i + 1];
                     let result_val = input_1_val
                         .and_then(|input_1| input_2_val.map(|input_2| input_1 * &input_2));
-                    let result_var = cs.alloc(
-                        || format!("Result {}", i),
-                        || result_val.ok_or(SynthesisError::AssignmentMissing),
-                    )?;
-                    cs.enforce(
-                        || format!("Enforce constraint {}", i),
-                        |lc| lc + input_1_var,
-                        |lc| lc + input_2_var,
-                        |lc| lc + result_var,
-                    );
+                    let result_var = cs.new_witness_variable(|| {
+                        result_val.ok_or(SynthesisError::AssignmentMissing)
+                    })?;
+                    cs.enforce_named_constraint(
+                        format!("Enforce constraint {}", i),
+                        lc!() + input_1_var,
+                        lc!() + input_2_var,
+                        lc!() + result_var,
+                    )
+                    .unwrap();
                     (result_val, result_var)
                 };
                 variables.push(new_entry);
@@ -403,20 +396,19 @@ mod test {
             };
 
             // assert!(!verify_proof(&pvk, &proof, &[a]).unwrap());
-            let mut cs = TestConstraintSystem::<Fq>::new();
+            let cs = ConstraintSystem::<Fq>::new_ref();
 
             let inputs: Vec<_> = inputs.into_iter().map(|input| input.unwrap()).collect();
             let mut input_gadgets = Vec::new();
 
             {
-                let mut cs = cs.ns(|| "Allocate Input");
                 for (i, input) in inputs.into_iter().enumerate() {
                     let mut input_bits = BitIterator::new(input.into_repr()).collect::<Vec<_>>();
                     // Input must be in little-endian, but BitIterator outputs in big-endian.
                     input_bits.reverse();
 
                     let input_bits =
-                        Vec::<Boolean>::alloc_input(cs.ns(|| format!("Input {}", i)), || {
+                        Vec::<Boolean<Fq>>::new_input(cs.ns(format!("Input {}", i)), || {
                             Ok(input_bits)
                         })
                         .unwrap();
@@ -424,18 +416,17 @@ mod test {
                 }
             }
 
-            let vk_gadget = TestVkVar::alloc_input(cs.ns(|| "Vk"), || Ok(&params.vk)).unwrap();
+            let vk_gadget = TestVkVar::new_input(cs.ns("Vk"), || Ok(&params.vk)).unwrap();
             let proof_gadget =
-                TestProofVar::alloc(cs.ns(|| "Proof"), || Ok(proof.clone())).unwrap();
+                TestProofVar::new_witness(cs.ns("Proof"), || Ok(proof.clone())).unwrap();
             println!("Time to verify!\n\n\n\n");
-            <TestVerifierGadget as NIZKVerifierGadget<TestProofSystem, Fq>>::check_verify(
-                cs.ns(|| "Verify"),
+            <TestVerifierGadget as NIZKVerifierGadget<TestProofSystem, Fq>>::verify(
                 &vk_gadget,
                 input_gadgets.iter(),
                 &proof_gadget,
             )
             .unwrap();
-            if !cs.is_satisfied() {
+            if !cs.is_satisfied().unwrap() {
                 println!("=========================================================");
                 println!("Unsatisfied constraints:");
                 println!("{:?}", cs.which_is_unsatisfied().unwrap());
@@ -443,7 +434,7 @@ mod test {
             }
 
             // cs.print_named_objects();
-            assert!(cs.is_satisfied());
+            assert!(cs.is_satisfied().unwrap());
         }
     }
 }
@@ -451,31 +442,32 @@ mod test {
 #[cfg(test)]
 mod test_recursive {
     use groth16::*;
-    use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+    use r1cs_core::{
+        lc, ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisError,
+    };
 
     use super::*;
     use algebra::{
         fields::{FftParameters, FpParameters},
         mnt4_298::{Fq as MNT4Fq, FqParameters as MNT4FqParameters, Fr as MNT4Fr, MNT4_298},
         mnt6_298::{Fq as MNT6Fq, FqParameters as MNT6FqParameters, Fr as MNT6Fr, MNT6_298},
-        test_rng, BigInteger, PrimeField,
+        test_rng, BigInteger, Field, PrimeField,
     };
     use r1cs_std::{
         fields::fp::FpVar, mnt4_298::PairingVar as MNT4_298PairingVar,
-        mnt6_298::PairingVar as MNT6_298PairingVar, test_constraint_system::TestConstraintSystem,
-        uint8::UInt8,
+        mnt6_298::PairingVar as MNT6_298PairingVar, uint8::UInt8, Assignment,
     };
     use rand::Rng;
 
     type TestProofSystem1 = Groth16<MNT6_298, Bench<MNT4Fq>, MNT6Fr>;
-    type TestVerifierVar1 = Groth16VerifierGadget<MNT6_298, MNT6Fq, MNT6_298PairingVar>;
-    type TestProofVar1 = ProofVar<MNT6_298, MNT6Fq, MNT6_298PairingVar>;
-    type TestVkVar1 = VerifyingKeyVar<MNT6_298, MNT6Fq, MNT6_298PairingVar>;
+    type TestVerifierGadget1 = Groth16VerifierGadget<MNT6_298, MNT6_298PairingVar>;
+    type TestProofVar1 = ProofVar<MNT6_298, MNT6_298PairingVar>;
+    type TestVkVar1 = VerifyingKeyVar<MNT6_298, MNT6_298PairingVar>;
 
     type TestProofSystem2 = Groth16<MNT4_298, Wrapper, MNT4Fr>;
-    type TestVerifierVar2 = Groth16VerifierGadget<MNT4_298, MNT4Fq, MNT4_298PairingVar>;
-    type TestProofVar2 = ProofVar<MNT4_298, MNT4Fq, MNT4_298PairingVar>;
-    type TestVkVar2 = VerifyingKeyVar<MNT4_298, MNT4Fq, MNT4_298PairingVar>;
+    type TestVerifierGadget2 = Groth16VerifierGadget<MNT4_298, MNT4_298PairingVar>;
+    type TestProofVar2 = ProofVar<MNT4_298, MNT4_298PairingVar>;
+    type TestVkVar2 = VerifyingKeyVar<MNT4_298, MNT4_298PairingVar>;
 
     #[derive(Clone)]
     struct Bench<F: Field> {
@@ -484,19 +476,13 @@ mod test_recursive {
     }
 
     impl<F: Field> ConstraintSynthesizer<F> for Bench<F> {
-        fn generate_constraints<CS: ConstraintSystem<F>>(
-            self,
-            cs: &mut CS,
-        ) -> Result<(), SynthesisError> {
+        fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
             assert!(self.inputs.len() >= 2);
             assert!(self.num_constraints >= self.inputs.len());
 
             let mut variables: Vec<_> = Vec::with_capacity(self.inputs.len());
-            for (i, input) in self.inputs.into_iter().enumerate() {
-                let input_var = cs.alloc_input(
-                    || format!("Input {}", i),
-                    || input.ok_or(SynthesisError::AssignmentMissing),
-                )?;
+            for input in self.inputs {
+                let input_var = cs.new_input_variable(|| input.get())?;
                 variables.push((input, input_var));
             }
 
@@ -506,16 +492,16 @@ mod test_recursive {
                     let (input_2_val, input_2_var) = variables[i + 1];
                     let result_val = input_1_val
                         .and_then(|input_1| input_2_val.map(|input_2| input_1 * &input_2));
-                    let result_var = cs.alloc(
-                        || format!("Result {}", i),
-                        || result_val.ok_or(SynthesisError::AssignmentMissing),
-                    )?;
-                    cs.enforce(
-                        || format!("Enforce constraint {}", i),
-                        |lc| lc + input_1_var,
-                        |lc| lc + input_2_var,
-                        |lc| lc + result_var,
-                    );
+                    let result_var = cs.new_witness_variable(|| {
+                        result_val.ok_or(SynthesisError::AssignmentMissing)
+                    })?;
+                    cs.enforce_named_constraint(
+                        format!("Enforce constraint {}", i),
+                        lc!() + input_1_var,
+                        lc!() + input_2_var,
+                        lc!() + result_var,
+                    )
+                    .unwrap();
                     (result_val, result_var)
                 };
                 variables.push(new_entry);
@@ -531,9 +517,9 @@ mod test_recursive {
     }
 
     impl ConstraintSynthesizer<MNT6Fq> for Wrapper {
-        fn generate_constraints<CS: ConstraintSystem<MNT6Fq>>(
+        fn generate_constraints(
             self,
-            cs: &mut CS,
+            cs: ConstraintSystemRef<MNT6Fq>,
         ) -> Result<(), SynthesisError> {
             let params = self.params;
             let proof = self.proof;
@@ -545,7 +531,6 @@ mod test_recursive {
             let input_gadgets;
 
             {
-                let mut cs = cs.ns(|| "Allocate Input");
                 // Chain all input values in one large byte array.
                 let input_bytes = inputs
                     .clone()
@@ -561,7 +546,7 @@ mod test_recursive {
                     .collect::<Vec<_>>();
 
                 // Allocate this byte array as input packed into field elements.
-                let input_bytes = UInt8::alloc_input_vec(cs.ns(|| "Input"), &input_bytes[..])?;
+                let input_bytes = UInt8::new_input_vec(cs.ns("Input"), &input_bytes[..])?;
                 // 40 byte
                 let element_size = <MNT4FqParameters as FftParameters>::BigInt::NUM_LIMBS * 8;
                 input_gadgets = input_bytes
@@ -575,11 +560,10 @@ mod test_recursive {
                     .collect::<Vec<_>>();
             }
 
-            let vk_gadget = TestVkVar1::alloc(cs.ns(|| "Vk"), || Ok(&params.vk))?;
+            let vk_gadget = TestVkVar1::new_witness(cs.ns("Vk"), || Ok(&params.vk))?;
             let proof_gadget =
-                TestProofVar1::alloc(cs.ns(|| "Proof"), || Ok(proof.clone())).unwrap();
-            <TestVerifierGadget1 as NIZKVerifierGadget<TestProofSystem1, MNT6Fq>>::check_verify(
-                cs.ns(|| "Verify"),
+                TestProofVar1::new_witness(cs.ns("Proof"), || Ok(proof.clone())).unwrap();
+            <TestVerifierGadget1 as NIZKVerifierGadget<TestProofSystem1, MNT6Fq>>::verify(
                 &vk_gadget,
                 input_gadgets.iter(),
                 &proof_gadget,
@@ -643,7 +627,7 @@ mod test_recursive {
                 create_random_proof(c, &params, rng).unwrap()
             };
 
-            let mut cs = TestConstraintSystem::<MNT4Fq>::new();
+            let cs = ConstraintSystem::<MNT4Fq>::new_ref();
 
             let inputs: Vec<_> = inputs.into_iter().map(|input| input.unwrap()).collect();
             let mut input_gadgets = Vec::new();
@@ -651,13 +635,10 @@ mod test_recursive {
             {
                 let bigint_size = <MNT4FqParameters as FftParameters>::BigInt::NUM_LIMBS * 64;
                 let mut input_bits = Vec::new();
-                let mut cs = cs.ns(|| "Allocate Input");
                 for (i, input) in inputs.into_iter().enumerate() {
                     let input_gadget =
-                        FpVar::alloc_input(cs.ns(|| format!("Input {}", i)), || Ok(input)).unwrap();
-                    let mut fp_bits = input_gadget
-                        .to_bits(cs.ns(|| format!("To bits {}", i)))
-                        .unwrap();
+                        FpVar::new_input(cs.ns(format!("Input {}", i)), || Ok(input)).unwrap();
+                    let mut fp_bits = input_gadget.to_bits().unwrap();
 
                     // FpVar::to_bits outputs a big-endian binary representation of
                     // fe_gadget's value, so we have to reverse it to get the little-endian
@@ -686,18 +667,17 @@ mod test_recursive {
                 // assert!(!verify_proof(&pvk, &proof, &[a]).unwrap());
             }
 
-            let vk_gadget = TestVkVar2::alloc_input(cs.ns(|| "Vk"), || Ok(&params.vk)).unwrap();
+            let vk_gadget = TestVkVar2::new_input(cs.ns("Vk"), || Ok(&params.vk)).unwrap();
             let proof_gadget =
-                TestProofVar2::alloc(cs.ns(|| "Proof"), || Ok(proof.clone())).unwrap();
+                TestProofVar2::new_witness(cs.ns("Proof"), || Ok(proof.clone())).unwrap();
             println!("Time to verify!\n\n\n\n");
-            <TestVerifierGadget2 as NIZKVerifierGadget<TestProofSystem2, MNT4Fq>>::check_verify(
-                cs.ns(|| "Verify"),
+            <TestVerifierGadget2 as NIZKVerifierGadget<TestProofSystem2, MNT4Fq>>::verify(
                 &vk_gadget,
                 input_gadgets.iter(),
                 &proof_gadget,
             )
             .unwrap();
-            if !cs.is_satisfied() {
+            if !cs.is_satisfied().unwrap() {
                 println!("=========================================================");
                 println!("Unsatisfied constraints:");
                 println!("{:?}", cs.which_is_unsatisfied().unwrap());
@@ -705,7 +685,7 @@ mod test_recursive {
             }
 
             // cs.print_named_objects();
-            assert!(cs.is_satisfied());
+            assert!(cs.is_satisfied().unwrap());
         }
     }
 }
