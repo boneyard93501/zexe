@@ -298,6 +298,8 @@ impl<F: Field> ConstraintSystem<F> {
             construct_matrices: false,
         } = self.mode
         {
+            None
+        } else {
             let a: Vec<_> = self
                 .a_constraints
                 .iter()
@@ -331,8 +333,6 @@ impl<F: Field> ConstraintSystem<F> {
                 c,
             };
             Some(matrices)
-        } else {
-            None
         }
     }
 
