@@ -1,9 +1,8 @@
-use algebra_core::io;
 use core::fmt;
 
 /// This is an error that could occur during circuit synthesis contexts,
 /// such as CRS generation, proving or verification.
-#[derive(Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum SynthesisError {
     /// During synthesis, we tried to allocate a variable when `ConstraintSystemRef`
     /// was `None`.
@@ -18,37 +17,10 @@ pub enum SynthesisError {
     PolynomialDegreeTooLarge,
     /// During proof generation, we encountered an identity in the CRS
     UnexpectedIdentity,
-    /// During proof generation, we encountered an I/O error with the CRS
-    IoError(io::Error),
     /// During verification, our verifying key was malformed.
     MalformedVerifyingKey,
     /// During CRS generation, we observed an unconstrained auxiliary variable
     UnconstrainedVariable,
-}
-
-impl PartialEq for SynthesisError {
-    fn eq(&self, other: &SynthesisError) -> bool {
-        use SynthesisError::*;
-        match (self, other) {
-            (AssignmentMissing, AssignmentMissing)
-            | (MissingCS, MissingCS)
-            | (DivisionByZero, DivisionByZero)
-            | (Unsatisfiable, Unsatisfiable)
-            | (PolynomialDegreeTooLarge, PolynomialDegreeTooLarge)
-            | (UnexpectedIdentity, UnexpectedIdentity)
-            | (MalformedVerifyingKey, MalformedVerifyingKey)
-            | (UnconstrainedVariable, UnconstrainedVariable) => true,
-            (_, _) => false,
-        }
-    }
-}
-
-impl Eq for SynthesisError {}
-
-impl From<io::Error> for SynthesisError {
-    fn from(e: io::Error) -> SynthesisError {
-        SynthesisError::IoError(e)
-    }
 }
 
 #[cfg(feature = "std")]
@@ -71,7 +43,6 @@ impl fmt::Display for SynthesisError {
             SynthesisError::UnexpectedIdentity => {
                 write!(f, "encountered an identity element in the CRS")
             }
-            SynthesisError::IoError(err) => write!(f, "I/O error: {:?}", err),
             SynthesisError::MalformedVerifyingKey => write!(f, "malformed verifying key"),
             SynthesisError::UnconstrainedVariable => {
                 write!(f, "auxiliary variable was unconstrained")

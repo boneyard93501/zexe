@@ -120,7 +120,7 @@ where
         f: impl FnOnce() -> Result<T, SynthesisError>,
         mode: AllocationMode,
     ) -> Result<Self, SynthesisError> {
-        let r = to_bytes![&f().map(|b| b.borrow().0).unwrap_or(C::ScalarField::zero())]?;
+        let r = to_bytes![&f().map(|b| b.borrow().0).unwrap_or(C::ScalarField::zero())].unwrap();
         match mode {
             AllocationMode::Constant => Ok(Self(UInt8::constant_vec(&r))),
             AllocationMode::Input => UInt8::new_input_vec(cs, &r).map(Self),

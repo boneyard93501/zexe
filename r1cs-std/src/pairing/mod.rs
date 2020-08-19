@@ -22,6 +22,7 @@ where
         + EqGadget<Self::ConstraintF>
         + ToBitsGadget<Self::ConstraintF>
         + AllocVar<E::G1Projective, Self::ConstraintF>
+        + AllocVar<E::G1Affine, Self::ConstraintF>
         + ToBytesGadget<Self::ConstraintF>
         + CondSelectGadget<Self::ConstraintF>;
 
@@ -30,11 +31,18 @@ where
         + EqGadget<Self::ConstraintF>
         + ToBitsGadget<Self::ConstraintF>
         + AllocVar<E::G2Projective, Self::ConstraintF>
+        + AllocVar<E::G2Affine, Self::ConstraintF>
         + ToBytesGadget<Self::ConstraintF>
         + CondSelectGadget<Self::ConstraintF>;
 
-    type G1PreparedVar: ToBytesGadget<Self::ConstraintF> + Clone + Debug;
-    type G2PreparedVar: ToBytesGadget<Self::ConstraintF> + Clone + Debug;
+    type G1PreparedVar: ToBytesGadget<Self::ConstraintF>
+        + AllocVar<E::G1Prepared, Self::ConstraintF>
+        + Clone
+        + Debug;
+    type G2PreparedVar: ToBytesGadget<Self::ConstraintF>
+        + AllocVar<E::G2Prepared, Self::ConstraintF>
+        + Clone
+        + Debug;
     type GTVar: FieldVar<E::Fqk, ConstraintF = Self::ConstraintF>
         + From<Boolean<Self::ConstraintF>>
         + R1CSVar<Self::ConstraintF, Value = E::Fqk>

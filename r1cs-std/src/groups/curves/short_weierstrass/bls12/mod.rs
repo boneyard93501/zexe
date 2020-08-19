@@ -1,6 +1,6 @@
 use algebra::{
     curves::{
-        bls12::{Bls12Parameters, G1Prepared, TwistType},
+        bls12::{Bls12Parameters, G1Prepared, G2Prepared, TwistType},
         short_weierstrass_jacobian::GroupAffine,
     },
     fields::Field,
@@ -43,6 +43,24 @@ impl<P: Bls12Parameters> G1PreparedVar<P> {
     }
 }
 
+impl<P: Bls12Parameters> AllocVar<G1Prepared<P>, P::Fp> for G1PreparedVar<P> {
+    fn new_variable<T: Borrow<G1Prepared<P>>>(
+        cs: impl Into<Namespace<P::Fp>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let ns = cs.into();
+        let cs = ns.cs();
+        let g1_prep = f().map(|b| b.borrow().0);
+
+        let x = FpVar::new_variable(cs.ns("x"), || g1_prep.map(|g| g.x), mode)?;
+        let y = FpVar::new_variable(cs.ns("y"), || g1_prep.map(|g| g.y), mode)?;
+        let infinity = Boolean::new_variable(cs.ns("inf"), || g1_prep.map(|g| g.infinity), mode)?;
+        let g = AffineVar::new(x, y, infinity);
+        Ok(Self(g))
+    }
+}
+
 impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G1PreparedVar<P> {
     #[inline]
     fn to_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
@@ -73,6 +91,47 @@ type LCoeff<P> = (Fp2G<P>, Fp2G<P>);
 )]
 pub struct G2PreparedVar<P: Bls12Parameters> {
     pub ell_coeffs: Vec<LCoeff<P>>,
+}
+
+impl<P: Bls12Parameters> AllocVar<G2Prepared<P>, P::Fp> for G2PreparedVar<P> {
+    fn new_variable<T: Borrow<G2Prepared<P>>>(
+        cs: impl Into<Namespace<P::Fp>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let ns = cs.into();
+        let cs = ns.cs();
+        let g2_prep = f().map(|b| {
+            let projective_coeffs = &b.borrow().ell_coeffs;
+            let mut z_s = projective_coeffs
+                .iter()
+                .map(|(_, _, z)| *z)
+                .collect::<Vec<_>>();
+            algebra::fields::batch_inversion(&mut z_s);
+            projective_coeffs
+                .iter()
+                .zip(z_s)
+                .map(|((x, y, _), z_inv)| (*x * &z_inv, *y * &z_inv))
+                .collect::<Vec<_>>()
+        });
+
+        let l = Vec::new_variable(
+            cs.ns("l"),
+            || {
+                g2_prep
+                    .clone()
+                    .map(|c| c.iter().map(|(l, _)| *l).collect::<Vec<_>>())
+            },
+            mode,
+        )?;
+        let r = Vec::new_variable(
+            cs.ns("r"),
+            || g2_prep.map(|c| c.iter().map(|(_, r)| *r).collect::<Vec<_>>()),
+            mode,
+        )?;
+        let ell_coeffs = l.into_iter().zip(r).collect();
+        Ok(Self { ell_coeffs })
+    }
 }
 
 impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G2PreparedVar<P> {

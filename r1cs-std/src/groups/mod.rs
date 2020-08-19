@@ -38,10 +38,10 @@ pub trait CurveVar<C: ProjectiveCurve>:
     + for<'a> GroupOpsBounds<'a, C, Self>
     + for<'a> AddAssign<&'a Self>
     + for<'a> SubAssign<&'a Self>
-    + AddAssign<Self>
-    + SubAssign<Self>
     + AddAssign<C>
     + SubAssign<C>
+    + AddAssign<Self>
+    + SubAssign<Self>
 where
     for<'a> &'a Self: GroupOpsBounds<'a, C, Self>,
 {

@@ -411,7 +411,8 @@ impl<F: PrimeField> ToBytesGadget<F> for AllocatedFp<F> {
     fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
         let cs = self.cs.clone();
         let byte_values = match self.value {
-            Some(value) => to_bytes![&value.into_repr()]?
+            Some(value) => to_bytes![&value.into_repr()]
+                .unwrap()
                 .into_iter()
                 .map(Some)
                 .collect::<Vec<_>>(),
@@ -811,14 +812,14 @@ impl<F: PrimeField> ToBitsGadget<F> for FpVar<F> {
     /// form.
     fn to_bits(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
         match self {
-            Self::Constant(c) => UInt8::constant_vec(&to_bytes![c]?).to_bits(),
+            Self::Constant(c) => UInt8::constant_vec(&to_bytes![c].unwrap()).to_bits(),
             Self::Var(v) => v.to_bits(),
         }
     }
 
     fn to_non_unique_bits(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
         match self {
-            Self::Constant(c) => UInt8::constant_vec(&to_bytes![c]?).to_non_unique_bits(),
+            Self::Constant(c) => UInt8::constant_vec(&to_bytes![c].unwrap()).to_non_unique_bits(),
             Self::Var(v) => v.to_non_unique_bits(),
         }
     }
@@ -829,14 +830,14 @@ impl<F: PrimeField> ToBytesGadget<F> for FpVar<F> {
     /// form.
     fn to_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
         match self {
-            Self::Constant(c) => Ok(UInt8::constant_vec(&to_bytes![c]?)),
+            Self::Constant(c) => Ok(UInt8::constant_vec(&to_bytes![c].unwrap())),
             Self::Var(v) => v.to_bytes(),
         }
     }
 
     fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
         match self {
-            Self::Constant(c) => Ok(UInt8::constant_vec(&to_bytes![c]?)),
+            Self::Constant(c) => Ok(UInt8::constant_vec(&to_bytes![c].unwrap())),
             Self::Var(v) => v.to_non_unique_bytes(),
         }
     }

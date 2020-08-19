@@ -18,7 +18,7 @@ pub(crate) use std::{borrow::ToOwned, boxed::Box, vec::Vec};
 pub mod commitment;
 pub mod crh;
 pub mod merkle_tree;
-// pub mod nizk;
+pub mod nizk;
 pub mod prf;
 pub mod signature;
 
@@ -26,7 +26,7 @@ pub use self::{
     commitment::CommitmentScheme,
     crh::FixedLengthCRH,
     merkle_tree::{MerkleTree, Path},
-    // nizk::NIZK,
+    nizk::NIZK,
     prf::PRF,
     signature::SignatureScheme,
 };
@@ -34,12 +34,8 @@ pub use self::{
 #[cfg(feature = "r1cs")]
 #[cfg(feature = "r1cs")]
 pub use self::{
-    commitment::CommitmentGadget,
-    crh::FixedLengthCRHGadget,
-    merkle_tree::constraints::PathVar,
-    // nizk::NIZKVerifierGadget,
-    prf::PRFGadget,
-    signature::SigRandomizePkGadget,
+    commitment::CommitmentGadget, crh::FixedLengthCRHGadget, merkle_tree::constraints::PathVar,
+    nizk::NIZKVerifierGadget, prf::PRFGadget, signature::SigRandomizePkGadget,
 };
 
 pub type Error = Box<dyn algebra_core::Error>;

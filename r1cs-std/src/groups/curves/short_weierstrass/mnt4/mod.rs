@@ -5,7 +5,7 @@ use algebra::{
     },
     Field,
 };
-use r1cs_core::SynthesisError;
+use r1cs_core::{Namespace, SynthesisError};
 
 use crate::{
     fields::{fp::FpVar, fp2::Fp2Var, FieldVar},
@@ -14,6 +14,7 @@ use crate::{
     prelude::*,
     Vec,
 };
+use core::borrow::Borrow;
 
 pub type G1Var<P> =
     ProjectiveVar<<P as MNT4Parameters>::G1Parameters, FpVar<<P as MNT4Parameters>::Fp>>;
@@ -27,6 +28,30 @@ pub struct G1PreparedVar<P: MNT4Parameters> {
     pub y: FpVar<P::Fp>,
     pub x_twist: Fp2Var<P::Fp2Params>,
     pub y_twist: Fp2Var<P::Fp2Params>,
+}
+
+impl<P: MNT4Parameters> AllocVar<G1Prepared<P>, P::Fp> for G1PreparedVar<P> {
+    fn new_variable<T: Borrow<G1Prepared<P>>>(
+        cs: impl Into<Namespace<P::Fp>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let ns = cs.into();
+        let cs = ns.cs();
+
+        let g1_prep = f().map(|b| *b.borrow());
+
+        let x = FpVar::new_variable(cs.ns("x"), || g1_prep.map(|g| g.x), mode)?;
+        let y = FpVar::new_variable(cs.ns("y"), || g1_prep.map(|g| g.y), mode)?;
+        let x_twist = Fp2Var::new_variable(cs.ns("x_twist"), || g1_prep.map(|g| g.x_twist), mode)?;
+        let y_twist = Fp2Var::new_variable(cs.ns("y_twist"), || g1_prep.map(|g| g.y_twist), mode)?;
+        Ok(Self {
+            x,
+            y,
+            x_twist,
+            y_twist,
+        })
+    }
 }
 
 impl<P: MNT4Parameters> G1PreparedVar<P> {
@@ -96,6 +121,45 @@ pub struct G2PreparedVar<P: MNT4Parameters> {
     pub y_over_twist: Fp2Var<P::Fp2Params>,
     pub double_coefficients: Vec<AteDoubleCoefficientsVar<P>>,
     pub addition_coefficients: Vec<AteAdditionCoefficientsVar<P>>,
+}
+
+impl<P: MNT4Parameters> AllocVar<G2Prepared<P>, P::Fp> for G2PreparedVar<P> {
+    fn new_variable<T: Borrow<G2Prepared<P>>>(
+        cs: impl Into<Namespace<P::Fp>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let ns = cs.into();
+        let cs = ns.cs();
+
+        let g2_prep = f().map(|b| b.borrow().clone());
+        let g2 = g2_prep.as_ref().map_err(|e| *e);
+
+        let x = Fp2Var::new_variable(cs.ns("x"), || g2.map(|g| g.x), mode)?;
+        let y = Fp2Var::new_variable(cs.ns("y"), || g2.map(|g| g.y), mode)?;
+        let x_over_twist =
+            Fp2Var::new_variable(cs.ns("x_over_twist"), || g2.map(|g| g.x_over_twist), mode)?;
+        let y_over_twist =
+            Fp2Var::new_variable(cs.ns("y_over_twist"), || g2.map(|g| g.y_over_twist), mode)?;
+        let double_coefficients = Vec::new_variable(
+            cs.ns("double coeffs"),
+            || g2.map(|g| g.double_coefficients.clone()),
+            mode,
+        )?;
+        let addition_coefficients = Vec::new_variable(
+            cs.ns("add coeffs"),
+            || g2.map(|g| g.addition_coefficients.clone()),
+            mode,
+        )?;
+        Ok(Self {
+            x,
+            y,
+            x_over_twist,
+            y_over_twist,
+            double_coefficients,
+            addition_coefficients,
+        })
+    }
 }
 
 impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for G2PreparedVar<P> {
@@ -243,6 +307,31 @@ pub struct AteDoubleCoefficientsVar<P: MNT4Parameters> {
     pub c_l: Fp2Var<P::Fp2Params>,
 }
 
+impl<P: MNT4Parameters> AllocVar<AteDoubleCoefficients<P>, P::Fp> for AteDoubleCoefficientsVar<P> {
+    fn new_variable<T: Borrow<AteDoubleCoefficients<P>>>(
+        cs: impl Into<Namespace<P::Fp>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let ns = cs.into();
+        let cs = ns.cs();
+
+        let c_prep = f().map(|c| c.borrow().clone());
+        let c = c_prep.as_ref().map_err(|e| *e);
+
+        let c_h = Fp2Var::new_variable(cs.ns("c_h"), || c.map(|c| c.c_h), mode)?;
+        let c_4c = Fp2Var::new_variable(cs.ns("c_4c"), || c.map(|c| c.c_4c), mode)?;
+        let c_j = Fp2Var::new_variable(cs.ns("c_j"), || c.map(|c| c.c_j), mode)?;
+        let c_l = Fp2Var::new_variable(cs.ns("c_l"), || c.map(|c| c.c_l), mode)?;
+        Ok(Self {
+            c_h,
+            c_4c,
+            c_j,
+            c_l,
+        })
+    }
+}
+
 impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for AteDoubleCoefficientsVar<P> {
     #[inline]
     fn to_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
@@ -292,6 +381,26 @@ impl<P: MNT4Parameters> AteDoubleCoefficientsVar<P> {
 pub struct AteAdditionCoefficientsVar<P: MNT4Parameters> {
     pub c_l1: Fp2Var<P::Fp2Params>,
     pub c_rz: Fp2Var<P::Fp2Params>,
+}
+
+impl<P: MNT4Parameters> AllocVar<AteAdditionCoefficients<P>, P::Fp>
+    for AteAdditionCoefficientsVar<P>
+{
+    fn new_variable<T: Borrow<AteAdditionCoefficients<P>>>(
+        cs: impl Into<Namespace<P::Fp>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let ns = cs.into();
+        let cs = ns.cs();
+
+        let c_prep = f().map(|c| c.borrow().clone());
+        let c = c_prep.as_ref().map_err(|e| *e);
+
+        let c_l1 = Fp2Var::new_variable(cs.ns("c_l1"), || c.map(|c| c.c_l1), mode)?;
+        let c_rz = Fp2Var::new_variable(cs.ns("c_rz"), || c.map(|c| c.c_rz), mode)?;
+        Ok(Self { c_l1, c_rz })
+    }
 }
 
 impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for AteAdditionCoefficientsVar<P> {
