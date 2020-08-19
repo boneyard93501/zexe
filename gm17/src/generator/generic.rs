@@ -49,6 +49,7 @@ where
 {
     let setup_time = start_timer!(|| "GrothMaller17::Generator");
     let cs = ConstraintSystem::new_ref();
+    cs.set_mode(r1cs_core::SynthesisMode::Setup);
 
     // Synthesize the circuit.
     let synthesis_time = start_timer!(|| "Constraint synthesis");

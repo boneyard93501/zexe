@@ -48,6 +48,7 @@ where
 {
     let setup_time = start_timer!(|| "Groth16::Generator");
     let cs = ConstraintSystem::new_ref();
+    cs.set_mode(r1cs_core::SynthesisMode::Setup);
 
     // Synthesize the circuit.
     let synthesis_time = start_timer!(|| "Constraint synthesis");

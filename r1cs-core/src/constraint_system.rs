@@ -25,11 +25,11 @@ pub type Name = crate::Cow<'static, str>;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConstraintSystem<F: Field> {
     /// The mode in which the constraint system is operating. `self` can either
-    /// be in setup mode (i.e., `self.mode == Mode::Setup`) or in proving mode
-    /// (i.e., `self.mode == Mode::Prove`). If we are in proving mode, then we
+    /// be in setup mode (i.e., `self.mode == SynthesisMode::Setup`) or in proving mode
+    /// (i.e., `self.mode == SynthesisMode::Prove`). If we are in proving mode, then we
     /// have the additional option of whether or not to construct the A, B, and
     /// C matrices of the constraint system (see below).
-    pub mode: Mode,
+    pub mode: SynthesisMode,
     /// The number of variables that are "public inputs" to the constraint system.
     pub num_instance_variables: usize,
     /// The number of variables that are "private inputs" to the constraint system.
@@ -39,9 +39,9 @@ pub struct ConstraintSystem<F: Field> {
     /// The number of linear combinations
     pub num_linear_combinations: usize,
 
-    /// Assignments to the public input variables. This is empty if `self.mode == Mode::Setup`.
+    /// Assignments to the public input variables. This is empty if `self.mode == SynthesisMode::Setup`.
     pub instance_assignment: Vec<F>,
-    /// Assignments to the private input variables. This is empty if `self.mode == Mode::Setup`.
+    /// Assignments to the private input variables. This is empty if `self.mode == SynthesisMode::Setup`.
     pub witness_assignment: Vec<F>,
 
     lc_map: BTreeMap<LcIndex, LinearCombination<F>>,
@@ -58,7 +58,7 @@ pub struct ConstraintSystem<F: Field> {
 
 /// Defines the mode of operation of a `ConstraintSystem`.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub enum Mode {
+pub enum SynthesisMode {
     /// Indicate to the `ConstraintSystem` that it should only generate
     /// constraint matrices and not populate the variable assignments.
     Setup,
@@ -105,7 +105,7 @@ impl<F: Field> ConstraintSystem<F> {
             lc_map: BTreeMap::new(),
             lc_assignment_cache: Rc::new(RefCell::new(BTreeMap::new())),
 
-            mode: Mode::Prove {
+            mode: SynthesisMode::Prove {
                 construct_matrices: true,
             },
         }
@@ -116,16 +116,21 @@ impl<F: Field> ConstraintSystem<F> {
         ConstraintSystemRef::new(Self::new())
     }
 
-    /// Check whether `self.mode == Mode::Setup`.
+    /// Set `self.mode` to `mode`.
+    pub fn set_mode(&mut self, mode: SynthesisMode) {
+        self.mode = mode;
+    }
+
+    /// Check whether `self.mode == SynthesisMode::Setup`.
     pub fn is_in_setup_mode(&self) -> bool {
-        self.mode == Mode::Setup
+        self.mode == SynthesisMode::Setup
     }
 
     /// Check whether or not `self` will construct matrices.
     pub fn should_construct_matrices(&self) -> bool {
         match self.mode {
-            Mode::Setup => true,
-            Mode::Prove { construct_matrices } => construct_matrices,
+            SynthesisMode::Setup => true,
+            SynthesisMode::Prove { construct_matrices } => construct_matrices,
         }
     }
 
@@ -289,7 +294,7 @@ impl<F: Field> ConstraintSystem<F> {
     /// This step must be called after constraint generation has completed, and after
     /// all symbolic LCs have been inlined into the places that they are used.
     pub fn to_matrices(&self) -> Option<ConstraintMatrices<F>> {
-        if let Mode::Prove {
+        if let SynthesisMode::Prove {
             construct_matrices: false,
         } = self.mode
         {
@@ -403,13 +408,13 @@ pub struct ConstraintMatrices<F: Field> {
     pub c_num_non_zero: usize,
 
     /// The A constraint matrix. This is empty when
-    /// `self.mode == Mode::Prove { construct_matrices = false }`.
+    /// `self.mode == SynthesisMode::Prove { construct_matrices = false }`.
     pub a: Matrix<F>,
     /// The B constraint matrix. This is empty when
-    /// `self.mode == Mode::Prove { construct_matrices = false }`.
+    /// `self.mode == SynthesisMode::Prove { construct_matrices = false }`.
     pub b: Matrix<F>,
     /// The C constraint matrix. This is empty when
-    /// `self.mode == Mode::Prove { construct_matrices = false }`.
+    /// `self.mode == SynthesisMode::Prove { construct_matrices = false }`.
     pub c: Matrix<F>,
 }
 
@@ -505,7 +510,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     #[inline]
     pub fn ns(&self, name: impl Into<Name>) -> Namespace<F> {
         let cs = self.inner().cloned();
-        cs.map(|cs| cs.borrow_mut().enter_namespace(name));
+        cs.map_or((), |cs| cs.borrow_mut().enter_namespace(name));
         Namespace {
             inner: self.clone(),
             entered_ns: true,
@@ -519,7 +524,12 @@ impl<F: Field> ConstraintSystemRef<F> {
         cs.map_or((), |cs| cs.borrow_mut().leave_namespace())
     }
 
-    /// Check whether `self.mode == Mode::Setup`.
+    /// Set `self.mode` to `mode`.
+    pub fn set_mode(&self, mode: SynthesisMode) {
+        self.inner().map_or((), |cs| cs.borrow_mut().set_mode(mode))
+    }
+
+    /// Check whether `self.mode == SynthesisMode::Setup`.
     #[inline]
     pub fn is_in_setup_mode(&self) -> bool {
         self.inner()
@@ -590,7 +600,7 @@ impl<F: Field> ConstraintSystemRef<F> {
                 } else {
                     cs.borrow_mut().new_witness_variable(f)
                 }
-        })
+            })
     }
 
     /// Obtain a variable representing a linear combination.

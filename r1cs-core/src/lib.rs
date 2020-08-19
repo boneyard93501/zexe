@@ -40,7 +40,7 @@ mod impl_lc;
 
 pub use algebra_core::{Field, ToConstraintField};
 pub use constraint_system::{
-    ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, Name, Namespace,
+    ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, Name, Namespace, SynthesisMode,
 };
 pub use error::SynthesisError;
 
