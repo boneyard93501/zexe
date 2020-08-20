@@ -128,7 +128,6 @@ impl<P: Config> MerkleTree<P> {
             level_indices.push(index);
             index = left_child(index);
         }
-        println!("Here 1");
 
         // Compute and store the hash values for each leaf.
         let last_level_index = level_indices.pop().unwrap_or(0);
@@ -136,7 +135,6 @@ impl<P: Config> MerkleTree<P> {
         for (i, leaf) in leaves.iter().enumerate() {
             tree[last_level_index + i] = hash_leaf::<P::H, _>(&parameters, leaf, &mut buffer)?;
         }
-        println!("Here 2");
 
         // Compute the hash values for every node in the tree.
         let mut upper_bound = last_level_index;

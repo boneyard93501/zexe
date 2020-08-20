@@ -55,8 +55,6 @@ pub trait FieldVar<F: Field>:
     + SubAssign<F>
     + MulAssign<F>
     + Debug
-where
-    for<'a> &'a Self: FieldOpsBounds<'a, F, Self>,
 {
     type ConstraintF: Field;
 
@@ -75,7 +73,7 @@ where
     fn constant(v: F) -> Self;
 
     fn double(&self) -> Result<Self, SynthesisError> {
-        Ok(self + self)
+        Ok(self.clone() + self)
     }
 
     fn double_in_place(&mut self) -> Result<&mut Self, SynthesisError> {
@@ -92,7 +90,7 @@ where
     }
 
     fn square(&self) -> Result<Self, SynthesisError> {
-        Ok(self * self)
+        Ok(self.clone() * self)
     }
 
     fn square_in_place(&mut self) -> Result<&mut Self, SynthesisError> {
@@ -102,7 +100,7 @@ where
 
     /// Enforce that `self * other == result`.
     fn mul_equals(&self, other: &Self, result: &Self) -> Result<(), SynthesisError> {
-        let actual_result = self * other;
+        let actual_result = self.clone() * other;
         result.enforce_equal(&actual_result)
     }
 
@@ -144,7 +142,7 @@ where
         let mut res = Self::one();
         for bit in bits.iter() {
             res.square_in_place()?;
-            let tmp = &res * self;
+            let tmp = res.clone() * self;
             res = bit.select(&tmp, &res)?;
         }
         Ok(res)

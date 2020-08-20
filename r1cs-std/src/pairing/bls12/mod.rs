@@ -59,7 +59,6 @@ impl<P: Bls12Parameters> PairingVar<P> {
 }
 
 impl<P: Bls12Parameters> PG<Bls12<P>> for PairingVar<P> {
-    type ConstraintF = P::Fp;
     type G1Var = G1Var<P>;
     type G2Var = G2Var<P>;
     type G1PreparedVar = G1PreparedVar<P>;
