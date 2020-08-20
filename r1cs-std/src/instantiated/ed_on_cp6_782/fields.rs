@@ -5,5 +5,5 @@ pub type FqVar = FpVar<Fq>;
 
 #[test]
 fn test() {
-    crate::fields::tests::field_test::<_, FqVar>().unwrap();
+    crate::fields::tests::field_test::<_, _, FqVar>().unwrap();
 }

@@ -20,8 +20,10 @@ pub mod mnt6;
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
 #[must_use]
-pub struct ProjectiveVar<P: SWModelParameters, F: FieldVar<P::BaseField>>
-where
+pub struct ProjectiveVar<
+    P: SWModelParameters,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+> where
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
     /// The x-coordinate.
@@ -38,8 +40,10 @@ where
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
 #[must_use]
-pub struct AffineVar<P: SWModelParameters, F: FieldVar<P::BaseField>>
-where
+pub struct AffineVar<
+    P: SWModelParameters,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+> where
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
     /// The x-coordinate.
@@ -47,7 +51,7 @@ where
     /// The y-coordinate.
     pub y: F,
     /// Is `self` the point at infinity.
-    pub infinity: Boolean<F::ConstraintF>,
+    pub infinity: Boolean<<P::BaseField as Field>::BasePrimeField>,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
@@ -55,10 +59,10 @@ where
 impl<P, F> AffineVar<P, F>
 where
     P: SWModelParameters,
-    F: FieldVar<P::BaseField>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
-    fn new(x: F, y: F, infinity: Boolean<F::ConstraintF>) -> Self {
+    fn new(x: F, y: F, infinity: Boolean<<P::BaseField as Field>::BasePrimeField>) -> Self {
         Self {
             x,
             y,
@@ -76,15 +80,15 @@ where
     }
 }
 
-impl<P, F> R1CSVar<F::ConstraintF> for ProjectiveVar<P, F>
+impl<P, F> R1CSVar<<P::BaseField as Field>::BasePrimeField> for ProjectiveVar<P, F>
 where
     P: SWModelParameters,
-    F: FieldVar<P::BaseField>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
     type Value = SWProjective<P>;
 
-    fn cs(&self) -> Option<ConstraintSystemRef<F::ConstraintF>> {
+    fn cs(&self) -> Option<ConstraintSystemRef<<P::BaseField as Field>::BasePrimeField>> {
         self.x.cs().or(self.y.cs()).or(self.z.cs())
     }
 
@@ -99,7 +103,8 @@ where
     }
 }
 
-impl<P: SWModelParameters, F: FieldVar<P::BaseField>> ProjectiveVar<P, F>
+impl<P: SWModelParameters, F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>>
+    ProjectiveVar<P, F>
 where
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
@@ -150,7 +155,7 @@ where
     /// useful if the variable is known to be on the curve (eg., if the point
     /// is a constant or is a public input).
     pub fn new_variable_omit_on_curve_check(
-        cs: impl Into<Namespace<F::ConstraintF>>,
+        cs: impl Into<Namespace<<P::BaseField as Field>::BasePrimeField>>,
         f: impl FnOnce() -> Result<SWProjective<P>, SynthesisError>,
         mode: AllocationMode,
     ) -> Result<Self, SynthesisError> {
@@ -185,14 +190,13 @@ where
     }
 }
 
-impl<P, F> CurveVar<SWProjective<P>> for ProjectiveVar<P, F>
+impl<P, F> CurveVar<SWProjective<P>, <P::BaseField as Field>::BasePrimeField>
+    for ProjectiveVar<P, F>
 where
     P: SWModelParameters,
-    F: FieldVar<P::BaseField>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
-    type ConstraintF = F::ConstraintF;
-
     fn constant(g: SWProjective<P>) -> Self {
         let cs = ConstraintSystemRef::None;
         Self::new_variable_omit_on_curve_check(cs, || Ok(g), AllocationMode::Constant).unwrap()
@@ -202,12 +206,12 @@ where
         Self::new(F::zero(), F::one(), F::zero())
     }
 
-    fn is_zero(&self) -> Result<Boolean<Self::ConstraintF>, SynthesisError> {
+    fn is_zero(&self) -> Result<Boolean<<P::BaseField as Field>::BasePrimeField>, SynthesisError> {
         self.z.is_zero()
     }
 
     fn new_variable_omit_prime_order_check(
-        cs: impl Into<Namespace<Self::ConstraintF>>,
+        cs: impl Into<Namespace<<P::BaseField as Field>::BasePrimeField>>,
         f: impl FnOnce() -> Result<SWProjective<P>, SynthesisError>,
         mode: AllocationMode,
     ) -> Result<Self, SynthesisError> {
@@ -317,7 +321,12 @@ where
     }
 }
 
-fn mul_by_coeff_a<P: SWModelParameters, F: FieldVar<P::BaseField>>(f: &F) -> F
+fn mul_by_coeff_a<
+    P: SWModelParameters,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+>(
+    f: &F,
+) -> F
 where
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
@@ -374,7 +383,7 @@ impl_bounded_ops!(
     |this: &'a ProjectiveVar<P, F>, other: SWProjective<P>| {
         this + ProjectiveVar::constant(other)
     },
-    (F: FieldVar<P::BaseField>, P: SWModelParameters),
+    (F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>, P: SWModelParameters),
     for <'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
 );
 
@@ -387,14 +396,14 @@ impl_bounded_ops!(
     sub_assign,
     |this: &'a ProjectiveVar<P, F>, other: &'a ProjectiveVar<P, F>| this + other.negate().unwrap(),
     |this: &'a ProjectiveVar<P, F>, other: SWProjective<P>| this - ProjectiveVar::constant(other),
-    (F: FieldVar<P::BaseField>, P: SWModelParameters),
+    (F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>, P: SWModelParameters),
     for <'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>
 );
 
 impl<'a, P, F> GroupOpsBounds<'a, SWProjective<P>, ProjectiveVar<P, F>> for ProjectiveVar<P, F>
 where
     P: SWModelParameters,
-    F: FieldVar<P::BaseField>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
     for<'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
 {
 }
@@ -402,20 +411,20 @@ where
 impl<'a, P, F> GroupOpsBounds<'a, SWProjective<P>, ProjectiveVar<P, F>> for &'a ProjectiveVar<P, F>
 where
     P: SWModelParameters,
-    F: FieldVar<P::BaseField>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
     for<'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
 {
 }
 
-impl<P, F> CondSelectGadget<F::ConstraintF> for ProjectiveVar<P, F>
+impl<P, F> CondSelectGadget<<P::BaseField as Field>::BasePrimeField> for ProjectiveVar<P, F>
 where
     P: SWModelParameters,
-    F: FieldVar<P::BaseField>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
     #[inline]
     fn conditionally_select(
-        cond: &Boolean<F::ConstraintF>,
+        cond: &Boolean<<P::BaseField as Field>::BasePrimeField>,
         true_value: &Self,
         false_value: &Self,
     ) -> Result<Self, SynthesisError> {
@@ -427,13 +436,16 @@ where
     }
 }
 
-impl<P, F> EqGadget<F::ConstraintF> for ProjectiveVar<P, F>
+impl<P, F> EqGadget<<P::BaseField as Field>::BasePrimeField> for ProjectiveVar<P, F>
 where
     P: SWModelParameters,
-    F: FieldVar<P::BaseField>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
-    fn is_eq(&self, other: &Self) -> Result<Boolean<F::ConstraintF>, SynthesisError> {
+    fn is_eq(
+        &self,
+        other: &Self,
+    ) -> Result<Boolean<<P::BaseField as Field>::BasePrimeField>, SynthesisError> {
         let x_equal = (&self.x * &other.z).is_eq(&(&other.x * &self.z))?;
         let y_equal = (&self.y * &other.z).is_eq(&(&other.y * &self.z))?;
         let coordinates_equal = x_equal.and(&y_equal)?;
@@ -445,7 +457,7 @@ where
     fn conditional_enforce_equal(
         &self,
         other: &Self,
-        condition: &Boolean<F::ConstraintF>,
+        condition: &Boolean<<P::BaseField as Field>::BasePrimeField>,
     ) -> Result<(), SynthesisError> {
         let x_equal = (&self.x * &other.z).is_eq(&(&other.x * &self.z))?;
         let y_equal = (&self.y * &other.z).is_eq(&(&other.y * &self.z))?;
@@ -461,7 +473,7 @@ where
     fn conditional_enforce_not_equal(
         &self,
         other: &Self,
-        condition: &Boolean<F::ConstraintF>,
+        condition: &Boolean<<P::BaseField as Field>::BasePrimeField>,
     ) -> Result<(), SynthesisError> {
         let is_equal = self.is_eq(other)?;
         is_equal
@@ -470,14 +482,14 @@ where
     }
 }
 
-impl<P, F> AllocVar<SWAffine<P>, F::ConstraintF> for ProjectiveVar<P, F>
+impl<P, F> AllocVar<SWAffine<P>, <P::BaseField as Field>::BasePrimeField> for ProjectiveVar<P, F>
 where
     P: SWModelParameters,
-    F: FieldVar<P::BaseField>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
     fn new_variable<T: Borrow<SWAffine<P>>>(
-        cs: impl Into<Namespace<F::ConstraintF>>,
+        cs: impl Into<Namespace<<P::BaseField as Field>::BasePrimeField>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
         mode: AllocationMode,
     ) -> Result<Self, SynthesisError> {
@@ -485,14 +497,15 @@ where
     }
 }
 
-impl<P, F> AllocVar<SWProjective<P>, F::ConstraintF> for ProjectiveVar<P, F>
+impl<P, F> AllocVar<SWProjective<P>, <P::BaseField as Field>::BasePrimeField>
+    for ProjectiveVar<P, F>
 where
     P: SWModelParameters,
-    F: FieldVar<P::BaseField>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
     fn new_variable<T: Borrow<SWProjective<P>>>(
-        cs: impl Into<Namespace<F::ConstraintF>>,
+        cs: impl Into<Namespace<<P::BaseField as Field>::BasePrimeField>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
         mode: AllocationMode,
     ) -> Result<Self, SynthesisError> {
@@ -597,13 +610,15 @@ fn div2(limbs: &mut [u64]) {
     }
 }
 
-impl<P, F> ToBitsGadget<F::ConstraintF> for ProjectiveVar<P, F>
+impl<P, F> ToBitsGadget<<P::BaseField as Field>::BasePrimeField> for ProjectiveVar<P, F>
 where
     P: SWModelParameters,
-    F: FieldVar<P::BaseField>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
-    fn to_bits(&self) -> Result<Vec<Boolean<F::ConstraintF>>, SynthesisError> {
+    fn to_bits(
+        &self,
+    ) -> Result<Vec<Boolean<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
         let g = self.to_affine()?;
         let mut bits = g.x.to_bits()?;
         let y_bits = g.y.to_bits()?;
@@ -612,7 +627,9 @@ where
         Ok(bits)
     }
 
-    fn to_non_unique_bits(&self) -> Result<Vec<Boolean<F::ConstraintF>>, SynthesisError> {
+    fn to_non_unique_bits(
+        &self,
+    ) -> Result<Vec<Boolean<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
         let g = self.to_affine()?;
         let mut bits = g.x.to_non_unique_bits()?;
         let y_bits = g.y.to_non_unique_bits()?;
@@ -622,13 +639,15 @@ where
     }
 }
 
-impl<P, F> ToBytesGadget<F::ConstraintF> for ProjectiveVar<P, F>
+impl<P, F> ToBytesGadget<<P::BaseField as Field>::BasePrimeField> for ProjectiveVar<P, F>
 where
     P: SWModelParameters,
-    F: FieldVar<P::BaseField>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
-    fn to_bytes(&self) -> Result<Vec<UInt8<F::ConstraintF>>, SynthesisError> {
+    fn to_bytes(
+        &self,
+    ) -> Result<Vec<UInt8<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
         let g = self.to_affine()?;
         let mut bytes = g.x.to_bytes()?;
         let y_bytes = g.y.to_bytes()?;
@@ -638,7 +657,9 @@ where
         Ok(bytes)
     }
 
-    fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<F::ConstraintF>>, SynthesisError> {
+    fn to_non_unique_bytes(
+        &self,
+    ) -> Result<Vec<UInt8<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
         let g = self.to_affine()?;
         let mut bytes = g.x.to_non_unique_bytes()?;
         let y_bytes = g.y.to_non_unique_bytes()?;
@@ -654,18 +675,18 @@ where
 pub(crate) fn test<P, GG>() -> Result<(), SynthesisError>
 where
     P: SWModelParameters,
-    GG: CurveVar<SWProjective<P>>,
+    GG: CurveVar<SWProjective<P>, <P::BaseField as Field>::BasePrimeField>,
     for<'a> &'a GG: GroupOpsBounds<'a, SWProjective<P>, GG>,
 {
     use crate::prelude::*;
     use algebra::{test_rng, Group, UniformRand};
     use r1cs_core::ConstraintSystem;
 
-    crate::groups::test::group_test::<SWProjective<P>, GG>()?;
+    crate::groups::test::group_test::<SWProjective<P>, _, GG>()?;
 
     let mut rng = test_rng();
 
-    let cs = ConstraintSystem::<GG::ConstraintF>::new_ref();
+    let cs = ConstraintSystem::<<P::BaseField as Field>::BasePrimeField>::new_ref();
 
     let a = SWProjective::<P>::rand(&mut rng);
     let b = SWProjective::<P>::rand(&mut rng);

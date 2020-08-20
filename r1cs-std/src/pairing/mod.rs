@@ -8,37 +8,17 @@ pub mod mnt4;
 pub mod mnt6;
 
 pub trait PairingVar<E: PairingEngine> {
-    // TODO: there are some ugly hacks here where we have to reproduce the bounds
-    // unnecessarily. Maybe there's an issue tracking this?
-
-    type G1Var: CurveVar<E::G1Projective, ConstraintF = E::Fq>
-        + R1CSVar<E::Fq, Value = E::G1Projective>
-        + EqGadget<E::Fq>
-        + ToBitsGadget<E::Fq>
+    type G1Var: CurveVar<E::G1Projective, E::Fq>
         + AllocVar<E::G1Projective, E::Fq>
-        + AllocVar<E::G1Affine, E::Fq>
-        + ToBytesGadget<E::Fq>
-        + CondSelectGadget<E::Fq>;
-
-    type G2Var: CurveVar<E::G2Projective, ConstraintF = E::Fq>
-        + R1CSVar<E::Fq, Value = E::G2Projective>
-        + EqGadget<E::Fq>
-        + ToBitsGadget<E::Fq>
+        + AllocVar<E::G1Affine, E::Fq>;
+    type G2Var: CurveVar<E::G2Projective, E::Fq>
         + AllocVar<E::G2Projective, E::Fq>
-        + AllocVar<E::G2Affine, E::Fq>
-        + ToBytesGadget<E::Fq>
-        + CondSelectGadget<E::Fq>;
+        + AllocVar<E::G2Affine, E::Fq>;
+
+    type GTVar: FieldVar<E::Fqk, E::Fq>;
 
     type G1PreparedVar: ToBytesGadget<E::Fq> + AllocVar<E::G1Prepared, E::Fq> + Clone + Debug;
     type G2PreparedVar: ToBytesGadget<E::Fq> + AllocVar<E::G2Prepared, E::Fq> + Clone + Debug;
-    type GTVar: FieldVar<E::Fqk, ConstraintF = E::Fq>
-        + From<Boolean<E::Fq>>
-        + R1CSVar<E::Fq, Value = E::Fqk>
-        + EqGadget<E::Fq>
-        + ToBitsGadget<E::Fq>
-        + AllocVar<E::Fqk, E::Fq>
-        + ToBytesGadget<E::Fq>
-        + CondSelectGadget<E::Fq>;
 
     fn miller_loop(
         p: &[Self::G1PreparedVar],
@@ -98,10 +78,10 @@ pub(crate) mod tests {
         let mut sb = b;
         sb *= s;
 
-        let a_g = P::G1Var::new_witness(cs.ns("a"), || Ok(a.into()))?;
-        let b_g = P::G2Var::new_witness(cs.ns("b"), || Ok(b.into()))?;
-        let sa_g = P::G1Var::new_witness(cs.ns("sa"), || Ok(sa.into()))?;
-        let sb_g = P::G2Var::new_witness(cs.ns("sb"), || Ok(sb.into()))?;
+        let a_g = P::G1Var::new_witness(cs.ns("a"), || Ok(a.into_affine()))?;
+        let b_g = P::G2Var::new_witness(cs.ns("b"), || Ok(b.into_affine()))?;
+        let sa_g = P::G1Var::new_witness(cs.ns("sa"), || Ok(sa.into_affine()))?;
+        let sb_g = P::G2Var::new_witness(cs.ns("sb"), || Ok(sb.into_affine()))?;
 
         let a_prep_g = P::prepare_g1(&a_g)?;
         let b_prep_g = P::prepare_g2(&b_g)?;

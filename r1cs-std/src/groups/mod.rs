@@ -23,18 +23,18 @@ pub trait GroupOpsBounds<'a, F, T: 'a>:
 {
 }
 
-pub trait CurveVar<C: ProjectiveCurve>:
+pub trait CurveVar<C: ProjectiveCurve, ConstraintF: Field>:
     'static
     + Sized
     + Clone
     + Debug
-    + R1CSVar<<Self as CurveVar<C>>::ConstraintF, Value = C>
-    + ToBitsGadget<<Self as CurveVar<C>>::ConstraintF>
-    + ToBytesGadget<<Self as CurveVar<C>>::ConstraintF>
-    + EqGadget<<Self as CurveVar<C>>::ConstraintF>
-    + CondSelectGadget<<Self as CurveVar<C>>::ConstraintF>
-    + AllocVar<C, <Self as CurveVar<C>>::ConstraintF>
-    + AllocVar<C::Affine, <Self as CurveVar<C>>::ConstraintF>
+    + R1CSVar<ConstraintF, Value = C>
+    + ToBitsGadget<ConstraintF>
+    + ToBytesGadget<ConstraintF>
+    + EqGadget<ConstraintF>
+    + CondSelectGadget<ConstraintF>
+    + AllocVar<C, ConstraintF>
+    + AllocVar<C::Affine, ConstraintF>
     + for<'a> GroupOpsBounds<'a, C, Self>
     + for<'a> AddAssign<&'a Self>
     + for<'a> SubAssign<&'a Self>
@@ -43,20 +43,18 @@ pub trait CurveVar<C: ProjectiveCurve>:
     + AddAssign<Self>
     + SubAssign<Self>
 {
-    type ConstraintF: Field;
-
     fn constant(other: C) -> Self;
 
     fn zero() -> Self;
 
-    fn is_zero(&self) -> Result<Boolean<Self::ConstraintF>, SynthesisError> {
+    fn is_zero(&self) -> Result<Boolean<ConstraintF>, SynthesisError> {
         self.is_eq(&Self::zero())
     }
 
     /// Allocate a variable in the subgroup without checking if it's in the
     /// prime-order subgroup
     fn new_variable_omit_prime_order_check(
-        cs: impl Into<Namespace<Self::ConstraintF>>,
+        cs: impl Into<Namespace<ConstraintF>>,
         f: impl FnOnce() -> Result<C, SynthesisError>,
         mode: AllocationMode,
     ) -> Result<Self, SynthesisError>;
@@ -79,7 +77,7 @@ pub trait CurveVar<C: ProjectiveCurve>:
     /// `result` must not be the identity element.
     fn mul_bits<'a>(
         &self,
-        bits: impl Iterator<Item = &'a Boolean<Self::ConstraintF>>,
+        bits: impl Iterator<Item = &'a Boolean<ConstraintF>>,
     ) -> Result<Self, SynthesisError> {
         let mut power = self.clone();
         let mut result = Self::zero();
@@ -97,7 +95,7 @@ pub trait CurveVar<C: ProjectiveCurve>:
     ) -> Result<(), SynthesisError>
     where
         I: Iterator<Item = (B, &'a C)>,
-        B: Borrow<Boolean<Self::ConstraintF>>,
+        B: Borrow<Boolean<ConstraintF>>,
         C: 'a,
     {
         for (bit, base_power) in scalar_bits_with_base_powers {
@@ -112,7 +110,7 @@ pub trait CurveVar<C: ProjectiveCurve>:
         _: &[J],
     ) -> Result<Self, SynthesisError>
     where
-        I: Borrow<[Boolean<Self::ConstraintF>]>,
+        I: Borrow<[Boolean<ConstraintF>]>,
         J: Borrow<[I]>,
         B: Borrow<[C]>,
     {
@@ -124,7 +122,7 @@ pub trait CurveVar<C: ProjectiveCurve>:
         scalars: I,
     ) -> Result<Self, SynthesisError>
     where
-        T: 'a + ToBitsGadget<Self::ConstraintF> + ?Sized,
+        T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
         I: Iterator<Item = &'a T>,
         B: Borrow<[C]>,
     {
@@ -141,16 +139,17 @@ pub trait CurveVar<C: ProjectiveCurve>:
 
 #[cfg(test)]
 mod test {
-    use algebra::{test_rng, ProjectiveCurve};
+    use algebra::{test_rng, Field, ProjectiveCurve};
     use r1cs_core::{ConstraintSystem, SynthesisError};
 
     use crate::prelude::*;
 
-    pub(crate) fn group_test<C: ProjectiveCurve, GG: CurveVar<C>>() -> Result<(), SynthesisError>
+    pub(crate) fn group_test<C: ProjectiveCurve, ConstraintF: Field, GG: CurveVar<C, ConstraintF>>(
+    ) -> Result<(), SynthesisError>
     where
         for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
     {
-        let cs = ConstraintSystem::<GG::ConstraintF>::new_ref();
+        let cs = ConstraintSystem::<ConstraintF>::new_ref();
 
         let mut rng = test_rng();
         let a_native = C::rand(&mut rng);

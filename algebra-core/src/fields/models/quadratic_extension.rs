@@ -157,10 +157,7 @@ impl<P: QuadExtParameters> One for QuadExtField<P> {
 }
 
 impl<P: QuadExtParameters> Field for QuadExtField<P> {
-    #[inline]
-    fn characteristic<'a>() -> &'a [u64] {
-        P::BaseField::characteristic()
-    }
+    type BasePrimeField = P::BasePrimeField;
 
     fn double(&self) -> Self {
         let mut result = self.clone();

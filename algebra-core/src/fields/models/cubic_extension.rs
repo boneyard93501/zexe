@@ -134,10 +134,7 @@ impl<P: CubicExtParameters> One for CubicExtField<P> {
 }
 
 impl<P: CubicExtParameters> Field for CubicExtField<P> {
-    #[inline]
-    fn characteristic<'a>() -> &'a [u64] {
-        P::BaseField::characteristic()
-    }
+    type BasePrimeField = P::BasePrimeField;
 
     fn double(&self) -> Self {
         let mut result = self.clone();

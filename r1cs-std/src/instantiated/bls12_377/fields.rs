@@ -13,15 +13,15 @@ fn bls12_377_field_test() {
     use crate::fields::tests::*;
     use algebra::bls12_377::{Fq, Fq12, Fq2, Fq6};
 
-    field_test::<_, FqVar>().unwrap();
-    frobenius_tests::<Fq, FqVar>(13).unwrap();
+    field_test::<_, _, FqVar>().unwrap();
+    frobenius_tests::<Fq, _, FqVar>(13).unwrap();
 
-    field_test::<_, Fq2Var>().unwrap();
-    frobenius_tests::<Fq2, Fq2Var>(13).unwrap();
+    field_test::<_, _, Fq2Var>().unwrap();
+    frobenius_tests::<Fq2, _, Fq2Var>(13).unwrap();
 
-    field_test::<_, Fq6Var>().unwrap();
-    frobenius_tests::<Fq6, Fq6Var>(13).unwrap();
+    field_test::<_, _, Fq6Var>().unwrap();
+    frobenius_tests::<Fq6, _, Fq6Var>(13).unwrap();
 
-    field_test::<_, Fq12Var>().unwrap();
-    frobenius_tests::<Fq12, Fq12Var>(13).unwrap();
+    field_test::<_, _, Fq12Var>().unwrap();
+    frobenius_tests::<Fq12, _, Fq12Var>(13).unwrap();
 }

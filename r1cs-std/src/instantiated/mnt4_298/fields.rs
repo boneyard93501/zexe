@@ -12,12 +12,12 @@ fn mnt4_298_field_gadgets_test() {
     use crate::fields::tests::*;
     use algebra::mnt4_298::{Fq, Fq2, Fq4};
 
-    field_test::<_, FqVar>().unwrap();
-    frobenius_tests::<Fq, FqVar>(13).unwrap();
+    field_test::<_, _, FqVar>().unwrap();
+    frobenius_tests::<Fq, _, FqVar>(13).unwrap();
 
-    field_test::<_, Fq2Var>().unwrap();
-    frobenius_tests::<Fq2, Fq2Var>(13).unwrap();
+    field_test::<_, _, Fq2Var>().unwrap();
+    frobenius_tests::<Fq2, _, Fq2Var>(13).unwrap();
 
-    field_test::<_, Fq4Var>().unwrap();
-    frobenius_tests::<Fq4, Fq4Var>(13).unwrap();
+    field_test::<_, _, Fq4Var>().unwrap();
+    frobenius_tests::<Fq4, _, Fq4Var>(13).unwrap();
 }
