@@ -42,8 +42,6 @@ pub trait CurveVar<C: ProjectiveCurve>:
     + SubAssign<C>
     + AddAssign<Self>
     + SubAssign<Self>
-where
-    for<'a> &'a Self: GroupOpsBounds<'a, C, Self>,
 {
     type ConstraintF: Field;
 
@@ -86,7 +84,7 @@ where
         let mut power = self.clone();
         let mut result = Self::zero();
         for bit in bits {
-            let new_encoded = &result + &power;
+            let new_encoded = result.clone() + &power;
             result = bit.borrow().select(&new_encoded, &result)?;
             power.double_in_place()?;
         }
@@ -103,7 +101,7 @@ where
         C: 'a,
     {
         for (bit, base_power) in scalar_bits_with_base_powers {
-            let new_encoded = &*self + *base_power;
+            let new_encoded = self.clone() + *base_power;
             *self = bit.borrow().select(&new_encoded, self)?;
         }
         Ok(())

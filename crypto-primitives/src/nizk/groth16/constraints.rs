@@ -11,12 +11,7 @@ use groth16::{PreparedVerifyingKey, Proof, VerifyingKey};
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P::G1Var: Clone, P::G2Var: Clone"))]
-pub struct ProofVar<E: PairingEngine, P: PairingVar<E>>
-where
-    for<'a> &'a P::G1Var: GroupOpsBounds<'a, E::G1Projective, P::G1Var>,
-    for<'a> &'a P::G2Var: GroupOpsBounds<'a, E::G2Projective, P::G2Var>,
-    for<'a> &'a P::GTVar: FieldOpsBounds<'a, E::Fqk, P::GTVar>,
-{
+pub struct ProofVar<E: PairingEngine, P: PairingVar<E>> {
     pub a: P::G1Var,
     pub b: P::G2Var,
     pub c: P::G1Var,
@@ -27,12 +22,7 @@ where
     Clone(bound = "P::G1Var: Clone, P::GTVar: Clone, P::G1PreparedVar: Clone, \
              P::G2PreparedVar: Clone, ")
 )]
-pub struct VerifyingKeyVar<E: PairingEngine, P: PairingVar<E>>
-where
-    for<'a> &'a P::G1Var: GroupOpsBounds<'a, E::G1Projective, P::G1Var>,
-    for<'a> &'a P::G2Var: GroupOpsBounds<'a, E::G2Projective, P::G2Var>,
-    for<'a> &'a P::GTVar: FieldOpsBounds<'a, E::Fqk, P::GTVar>,
-{
+pub struct VerifyingKeyVar<E: PairingEngine, P: PairingVar<E>> {
     pub alpha_g1: P::G1Var,
     pub beta_g2: P::G2Var,
     pub gamma_g2: P::G2Var,
@@ -40,12 +30,7 @@ where
     pub gamma_abc_g1: Vec<P::G1Var>,
 }
 
-impl<E: PairingEngine, P: PairingVar<E>> VerifyingKeyVar<E, P>
-where
-    for<'a> &'a P::G1Var: GroupOpsBounds<'a, E::G1Projective, P::G1Var>,
-    for<'a> &'a P::G2Var: GroupOpsBounds<'a, E::G2Projective, P::G2Var>,
-    for<'a> &'a P::GTVar: FieldOpsBounds<'a, E::Fqk, P::GTVar>,
-{
+impl<E: PairingEngine, P: PairingVar<E>> VerifyingKeyVar<E, P> {
     pub fn prepare(&self) -> Result<PreparedVerifyingKeyVar<E, P>, SynthesisError> {
         let alpha_g1_pc = P::prepare_g1(&self.alpha_g1)?;
         let beta_g2_pc = P::prepare_g2(&self.beta_g2)?;
@@ -68,12 +53,7 @@ where
     Clone(bound = "P::G1Var: Clone, P::GTVar: Clone, P::G1PreparedVar: Clone, \
              P::G2PreparedVar: Clone, ")
 )]
-pub struct PreparedVerifyingKeyVar<E: PairingEngine, P: PairingVar<E>>
-where
-    for<'a> &'a P::G1Var: GroupOpsBounds<'a, E::G1Projective, P::G1Var>,
-    for<'a> &'a P::G2Var: GroupOpsBounds<'a, E::G2Projective, P::G2Var>,
-    for<'a> &'a P::GTVar: FieldOpsBounds<'a, E::Fqk, P::GTVar>,
-{
+pub struct PreparedVerifyingKeyVar<E: PairingEngine, P: PairingVar<E>> {
     pub alpha_g1_beta_g2: P::GTVar,
     pub gamma_g2_neg_pc: P::G2PreparedVar,
     pub delta_g2_neg_pc: P::G2PreparedVar,
@@ -85,46 +65,39 @@ where
     E: PairingEngine,
 
     P: PairingVar<E>,
-    for<'a> &'a P::G1Var: GroupOpsBounds<'a, E::G1Projective, P::G1Var>,
-    for<'a> &'a P::G2Var: GroupOpsBounds<'a, E::G2Projective, P::G2Var>,
-    for<'a> &'a P::GTVar: FieldOpsBounds<'a, E::Fqk, P::GTVar>,
 {
     _pairing_engine: PhantomData<E>,
     _pairing_gadget: PhantomData<P>,
 }
 
-impl<E, P, C, V> NIZKVerifierGadget<Groth16<E, C, V>, P::ConstraintF>
-    for Groth16VerifierGadget<E, P>
+impl<E, P, C, V> NIZKVerifierGadget<Groth16<E, C, V>, E::Fq> for Groth16VerifierGadget<E, P>
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
     V: ToConstraintField<E::Fr>,
     P: PairingVar<E>,
-    for<'a> &'a P::G1Var: GroupOpsBounds<'a, E::G1Projective, P::G1Var>,
-    for<'a> &'a P::G2Var: GroupOpsBounds<'a, E::G2Projective, P::G2Var>,
-    for<'a> &'a P::GTVar: FieldOpsBounds<'a, E::Fqk, P::GTVar>,
 {
     type PreparedVerificationKeyVar = PreparedVerifyingKeyVar<E, P>;
     type VerificationKeyVar = VerifyingKeyVar<E, P>;
     type ProofVar = ProofVar<E, P>;
 
-    fn conditional_verify<'a, T: 'a + ToBitsGadget<P::ConstraintF> + ?Sized>(
+    fn conditional_verify<'a, T: 'a + ToBitsGadget<E::Fq> + ?Sized>(
         vk: &Self::VerificationKeyVar,
         input: impl Iterator<Item = &'a T>,
         proof: &Self::ProofVar,
-        condition: &Boolean<P::ConstraintF>,
+        condition: &Boolean<E::Fq>,
     ) -> Result<(), SynthesisError> {
         let pvk = vk.prepare()?;
-        <Self as NIZKVerifierGadget<Groth16<E, C, V>, P::ConstraintF>>::conditional_verify_prepared(
+        <Self as NIZKVerifierGadget<Groth16<E, C, V>, E::Fq>>::conditional_verify_prepared(
             &pvk, input, proof, condition,
         )
     }
 
-    fn conditional_verify_prepared<'a, T: 'a + ToBitsGadget<P::ConstraintF> + ?Sized>(
+    fn conditional_verify_prepared<'a, T: 'a + ToBitsGadget<E::Fq> + ?Sized>(
         pvk: &Self::PreparedVerificationKeyVar,
         mut public_inputs: impl Iterator<Item = &'a T>,
         proof: &Self::ProofVar,
-        condition: &Boolean<P::ConstraintF>,
+        condition: &Boolean<E::Fq>,
     ) -> Result<(), SynthesisError> {
         let pvk = pvk.clone();
 
@@ -166,16 +139,13 @@ where
     }
 }
 
-impl<E, P> AllocVar<PreparedVerifyingKey<E>, P::ConstraintF> for PreparedVerifyingKeyVar<E, P>
+impl<E, P> AllocVar<PreparedVerifyingKey<E>, E::Fq> for PreparedVerifyingKeyVar<E, P>
 where
     E: PairingEngine,
     P: PairingVar<E>,
-    for<'a> &'a P::G1Var: GroupOpsBounds<'a, E::G1Projective, P::G1Var>,
-    for<'a> &'a P::G2Var: GroupOpsBounds<'a, E::G2Projective, P::G2Var>,
-    for<'a> &'a P::GTVar: FieldOpsBounds<'a, E::Fqk, P::GTVar>,
 {
     fn new_variable<T: Borrow<PreparedVerifyingKey<E>>>(
-        cs: impl Into<Namespace<P::ConstraintF>>,
+        cs: impl Into<Namespace<E::Fq>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
         mode: AllocationMode,
     ) -> Result<Self, SynthesisError> {
@@ -215,17 +185,14 @@ where
     }
 }
 
-impl<E, P> AllocVar<VerifyingKey<E>, P::ConstraintF> for VerifyingKeyVar<E, P>
+impl<E, P> AllocVar<VerifyingKey<E>, E::Fq> for VerifyingKeyVar<E, P>
 where
     E: PairingEngine,
 
     P: PairingVar<E>,
-    for<'a> &'a P::G1Var: GroupOpsBounds<'a, E::G1Projective, P::G1Var>,
-    for<'a> &'a P::G2Var: GroupOpsBounds<'a, E::G2Projective, P::G2Var>,
-    for<'a> &'a P::GTVar: FieldOpsBounds<'a, E::Fqk, P::GTVar>,
 {
     fn new_variable<T: Borrow<VerifyingKey<E>>>(
-        cs: impl Into<Namespace<P::ConstraintF>>,
+        cs: impl Into<Namespace<E::Fq>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
         mode: AllocationMode,
     ) -> Result<Self, SynthesisError> {
@@ -257,16 +224,13 @@ where
     }
 }
 
-impl<E, P> AllocVar<Proof<E>, P::ConstraintF> for ProofVar<E, P>
+impl<E, P> AllocVar<Proof<E>, E::Fq> for ProofVar<E, P>
 where
     E: PairingEngine,
     P: PairingVar<E>,
-    for<'a> &'a P::G1Var: GroupOpsBounds<'a, E::G1Projective, P::G1Var>,
-    for<'a> &'a P::G2Var: GroupOpsBounds<'a, E::G2Projective, P::G2Var>,
-    for<'a> &'a P::GTVar: FieldOpsBounds<'a, E::Fqk, P::GTVar>,
 {
     fn new_variable<T: Borrow<Proof<E>>>(
-        cs: impl Into<Namespace<P::ConstraintF>>,
+        cs: impl Into<Namespace<E::Fq>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
         mode: AllocationMode,
     ) -> Result<Self, SynthesisError> {
@@ -283,16 +247,13 @@ where
     }
 }
 
-impl<E, P> ToBytesGadget<P::ConstraintF> for VerifyingKeyVar<E, P>
+impl<E, P> ToBytesGadget<E::Fq> for VerifyingKeyVar<E, P>
 where
     E: PairingEngine,
     P: PairingVar<E>,
-    for<'a> &'a P::G1Var: GroupOpsBounds<'a, E::G1Projective, P::G1Var>,
-    for<'a> &'a P::G2Var: GroupOpsBounds<'a, E::G2Projective, P::G2Var>,
-    for<'a> &'a P::GTVar: FieldOpsBounds<'a, E::Fqk, P::GTVar>,
 {
     #[inline]
-    fn to_bytes(&self) -> Result<Vec<UInt8<P::ConstraintF>>, SynthesisError> {
+    fn to_bytes(&self) -> Result<Vec<UInt8<E::Fq>>, SynthesisError> {
         let mut bytes = Vec::new();
         bytes.extend_from_slice(&self.alpha_g1.to_bytes()?);
         bytes.extend_from_slice(&self.beta_g2.to_bytes()?);

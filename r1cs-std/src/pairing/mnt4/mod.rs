@@ -188,7 +188,6 @@ impl<P: MNT4Parameters> PairingVar<P> {
 }
 
 impl<P: MNT4Parameters> PG<MNT4<P>> for PairingVar<P> {
-    type ConstraintF = P::Fp;
     type G1Var = G1Var<P>;
     type G2Var = G2Var<P>;
     type G1PreparedVar = G1PreparedVar<P>;

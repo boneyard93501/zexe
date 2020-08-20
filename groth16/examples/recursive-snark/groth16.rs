@@ -54,8 +54,8 @@ struct MNT46;
 impl CurvePair for MNT46 {
     type PairingEngineTick = mnt4_753::MNT4_753;
     type PairingEngineTock = mnt6_753::MNT6_753;
-    type PairingGadgetTick = r1cs_std::mnt4_753::PairingGadget;
-    type PairingGadgetTock = r1cs_std::mnt6_753::PairingGadget;
+    type PairingVarTick = r1cs_std::mnt4_753::PairingVar;
+    type PairingVarTock = r1cs_std::mnt6_753::PairingVar;
     const TICK_CURVE: &'static str = "MNT4_753";
     const TOCK_CURVE: &'static str = "MNT6_753";
 }
@@ -63,8 +63,8 @@ struct MNT64;
 impl CurvePair for MNT64 {
     type PairingEngineTick = mnt6_753::MNT6_753;
     type PairingEngineTock = mnt4_753::MNT4_753;
-    type PairingGadgetTick = r1cs_std::mnt6_753::PairingGadget;
-    type PairingGadgetTock = r1cs_std::mnt4_753::PairingGadget;
+    type PairingVarTick = r1cs_std::mnt6_753::PairingVar;
+    type PairingVarTock = r1cs_std::mnt4_753::PairingVar;
     const TICK_CURVE: &'static str = "MNT6_753";
     const TOCK_CURVE: &'static str = "MNT4_753";
 }
