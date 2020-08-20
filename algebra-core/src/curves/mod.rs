@@ -23,13 +23,11 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
     type G1Projective: ProjectiveCurve<BaseField = Self::Fq, ScalarField = Self::Fr, Affine = Self::G1Affine>
         + From<Self::G1Affine>
         + Into<Self::G1Affine>
-        + PartialEq<Self::G1Affine>
         + MulAssign<Self::Fr>; // needed due to https://github.com/rust-lang/rust/issues/69640
 
     /// The affine representation of an element in G1.
     type G1Affine: AffineCurve<BaseField = Self::Fq, ScalarField = Self::Fr, Projective = Self::G1Projective>
         + From<Self::G1Projective>
-        + PartialEq<Self::G1Projective>
         + Into<Self::G1Projective>
         + Into<Self::G1Prepared>;
 
@@ -39,14 +37,12 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
     /// The projective representation of an element in G2.
     type G2Projective: ProjectiveCurve<BaseField = Self::Fqe, ScalarField = Self::Fr, Affine = Self::G2Affine>
         + From<Self::G2Affine>
-        + PartialEq<Self::G2Affine>
         + Into<Self::G2Affine>
         + MulAssign<Self::Fr>; // needed due to https://github.com/rust-lang/rust/issues/69640
 
     /// The affine representation of an element in G2.
     type G2Affine: AffineCurve<BaseField = Self::Fqe, ScalarField = Self::Fr, Projective = Self::G2Projective>
         + From<Self::G2Projective>
-        + PartialEq<Self::G2Projective>
         + Into<Self::G2Projective>
         + Into<Self::G2Prepared>;
 
@@ -98,7 +94,6 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
 /// in the correct prime order subgroup.
 pub trait ProjectiveCurve:
     Eq
-    + PartialEq<<Self as ProjectiveCurve>::Affine>
     + 'static
     + Sized
     + ToBytes
@@ -132,7 +127,6 @@ pub trait ProjectiveCurve:
     type BaseField: Field;
     type Affine: AffineCurve<Projective = Self, ScalarField = Self::ScalarField, BaseField = Self::BaseField>
         + From<Self>
-        + PartialEq<Self>
         + Into<Self>;
 
     /// Returns a fixed generator of unknown exponent.
@@ -210,7 +204,6 @@ pub trait ProjectiveCurve:
 /// in the correct prime order subgroup.
 pub trait AffineCurve:
     Eq
-    + PartialEq<<Self as AffineCurve>::Projective>
     + 'static
     + Sized
     + ToBytes
@@ -235,7 +228,6 @@ pub trait AffineCurve:
     type BaseField: Field;
     type Projective: ProjectiveCurve<Affine = Self, ScalarField = Self::ScalarField, BaseField = Self::BaseField>
         + From<Self>
-        + PartialEq<Self>
         + Into<Self>
         + MulAssign<Self::ScalarField>; // needed due to https://github.com/rust-lang/rust/issues/69640
 

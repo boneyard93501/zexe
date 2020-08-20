@@ -579,9 +579,7 @@ impl<F: PrimeField> AllocVar<F, F> for AllocatedFp<F> {
     }
 }
 
-impl<F: PrimeField> FieldVar<F> for FpVar<F> {
-    type ConstraintF = F;
-
+impl<F: PrimeField> FieldVar<F, F> for FpVar<F> {
     fn constant(f: F) -> Self {
         Self::Constant(f)
     }

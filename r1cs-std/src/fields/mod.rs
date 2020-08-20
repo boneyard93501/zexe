@@ -34,16 +34,16 @@ pub trait FieldOpsBounds<'a, F, T: 'a>:
 }
 
 /// A variable representing a field. Corresponds to the native type `F`.
-pub trait FieldVar<F: Field>:
+pub trait FieldVar<F: Field, ConstraintF: Field>:
     'static
     + Clone
-    + From<Boolean<<Self as FieldVar<F>>::ConstraintF>>
-    + R1CSVar<<Self as FieldVar<F>>::ConstraintF, Value = F>
-    + EqGadget<<Self as FieldVar<F>>::ConstraintF>
-    + ToBitsGadget<<Self as FieldVar<F>>::ConstraintF>
-    + AllocVar<F, <Self as FieldVar<F>>::ConstraintF>
-    + ToBytesGadget<<Self as FieldVar<F>>::ConstraintF>
-    + CondSelectGadget<<Self as FieldVar<F>>::ConstraintF>
+    + From<Boolean<ConstraintF>>
+    + R1CSVar<ConstraintF, Value = F>
+    + EqGadget<ConstraintF>
+    + ToBitsGadget<ConstraintF>
+    + AllocVar<F, ConstraintF>
+    + ToBytesGadget<ConstraintF>
+    + CondSelectGadget<ConstraintF>
     + for<'a> FieldOpsBounds<'a, F, Self>
     + for<'a> AddAssign<&'a Self>
     + for<'a> SubAssign<&'a Self>
@@ -58,17 +58,15 @@ pub trait FieldVar<F: Field>:
 where
     for<'a> &'a Self: FieldOpsBounds<'a, F, Self>,
 {
-    type ConstraintF: Field;
-
     fn zero() -> Self;
 
-    fn is_zero(&self) -> Result<Boolean<Self::ConstraintF>, SynthesisError> {
+    fn is_zero(&self) -> Result<Boolean<ConstraintF>, SynthesisError> {
         self.is_eq(&Self::zero())
     }
 
     fn one() -> Self;
 
-    fn is_one(&self) -> Result<Boolean<Self::ConstraintF>, SynthesisError> {
+    fn is_one(&self) -> Result<Boolean<ConstraintF>, SynthesisError> {
         self.is_eq(&Self::one())
     }
 
@@ -140,7 +138,7 @@ where
     /// form, are a scalar.
     //
     // TODO: check that the input really should be in little-endian or not...
-    fn pow(&self, bits: &[Boolean<Self::ConstraintF>]) -> Result<Self, SynthesisError> {
+    fn pow(&self, bits: &[Boolean<ConstraintF>]) -> Result<Self, SynthesisError> {
         let mut res = Self::one();
         for bit in bits.iter() {
             res.square_in_place()?;
@@ -181,12 +179,15 @@ pub(crate) mod tests {
     use r1cs_core::{ConstraintSystem, SynthesisError};
 
     #[allow(dead_code)]
-    pub(crate) fn field_test<F: Field, AF: FieldVar<F>>() -> Result<(), SynthesisError>
+    pub(crate) fn field_test<F, ConstraintF, AF>() -> Result<(), SynthesisError>
     where
-        AF: TwoBitLookupGadget<<AF as FieldVar<F>>::ConstraintF, TableConstant = F>,
+        F: Field,
+        ConstraintF: Field,
+        AF: FieldVar<F, ConstraintF>,
+        AF: TwoBitLookupGadget<ConstraintF, TableConstant = F>,
         for<'a> &'a AF: FieldOpsBounds<'a, F, AF>,
     {
-        let cs = ConstraintSystem::<AF::ConstraintF>::new_ref();
+        let cs = ConstraintSystem::<ConstraintF>::new_ref();
 
         let mut rng = test_rng();
         let a_native = F::rand(&mut rng);
@@ -318,7 +319,7 @@ pub(crate) mod tests {
             *c = UniformRand::rand(&mut test_rng());
         }
         let bits = [
-            Boolean::<AF::ConstraintF>::constant(false),
+            Boolean::<ConstraintF>::constant(false),
             Boolean::constant(true),
         ];
         let lookup_result = AF::two_bit_lookup(&bits, constants.as_ref())?;
@@ -343,13 +344,16 @@ pub(crate) mod tests {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn frobenius_tests<F: Field, AF: FieldVar<F>>(
+    pub(crate) fn frobenius_tests<F: Field, ConstraintF, AF>(
         maxpower: usize,
     ) -> Result<(), SynthesisError>
     where
+        F: Field,
+        ConstraintF: Field,
+        AF: FieldVar<F, ConstraintF>,
         for<'a> &'a AF: FieldOpsBounds<'a, F, AF>,
     {
-        let cs = ConstraintSystem::<AF::ConstraintF>::new_ref();
+        let cs = ConstraintSystem::<ConstraintF>::new_ref();
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         for i in 0..=maxpower {
             let mut a = F::rand(&mut rng);

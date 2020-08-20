@@ -14,8 +14,11 @@ use crate::{
 #[derive(Derivative)]
 #[derivative(Debug(bound = "BF: core::fmt::Debug"), Clone(bound = "BF: Clone"))]
 #[must_use]
-pub struct QuadExtVar<BF: FieldVar<P::BaseField>, P: QuadExtVarParams<BF>>
-where
+pub struct QuadExtVar<
+    BF: FieldVar<P::BaseField, ConstraintF>,
+    P: QuadExtVarParams<BF, ConstraintF>,
+    ConstraintF: Field,
+> where
     for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
 {
     pub c0: BF,
@@ -24,14 +27,19 @@ where
     _params: PhantomData<P>,
 }
 
-pub trait QuadExtVarParams<BF: FieldVar<Self::BaseField>>: QuadExtParameters
+pub trait QuadExtVarParams<BF: FieldVar<Self::BaseField, ConstraintF>, ConstraintF: Field>:
+    QuadExtParameters
 where
     for<'a> &'a BF: FieldOpsBounds<'a, Self::BaseField, BF>,
 {
     fn mul_base_field_var_by_frob_coeff(fe: &mut BF, power: usize);
 }
 
-impl<BF: FieldVar<P::BaseField>, P: QuadExtVarParams<BF>> QuadExtVar<BF, P>
+impl<
+        BF: FieldVar<P::BaseField, ConstraintF>,
+        P: QuadExtVarParams<BF, ConstraintF>,
+        ConstraintF: Field,
+    > QuadExtVar<BF, P>
 where
     for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
 {
@@ -100,11 +108,11 @@ where
     }
 }
 
-impl<BF, P> R1CSVar<BF::ConstraintF> for QuadExtVar<BF, P>
+impl<BF, P, ConstraintF: Field> R1CSVar<ConstraintF> for QuadExtVar<BF, P, ConstraintField>
 where
-    BF: FieldVar<P::BaseField>,
+    BF: FieldVar<P::BaseField, ConstraintField>,
     for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
-    P: QuadExtVarParams<BF>,
+    P: QuadExtVarParams<BF, ConstraintField>,
 {
     type Value = QuadExtField<P>;
 

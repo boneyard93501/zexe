@@ -85,7 +85,9 @@ where
 #[cfg(test)]
 pub(crate) mod tests {
     use crate::{prelude::*, Vec};
-    use algebra::{test_rng, BitIterator, Field, PairingEngine, PrimeField, UniformRand};
+    use algebra::{
+        test_rng, BitIterator, Field, PairingEngine, PrimeField, ProjectiveCurve, UniformRand,
+    };
     use r1cs_core::{ConstraintSystem, SynthesisError};
 
     #[allow(dead_code)]
@@ -108,10 +110,10 @@ pub(crate) mod tests {
         let mut sb = b;
         sb *= s;
 
-        let a_g = P::G1Var::new_witness(cs.ns("a"), || Ok(a))?;
-        let b_g = P::G2Var::new_witness(cs.ns("b"), || Ok(b))?;
-        let sa_g = P::G1Var::new_witness(cs.ns("sa"), || Ok(sa))?;
-        let sb_g = P::G2Var::new_witness(cs.ns("sb"), || Ok(sb))?;
+        let a_g = P::G1Var::new_witness(cs.ns("a"), || Ok(a.into_affine()))?;
+        let b_g = P::G2Var::new_witness(cs.ns("b"), || Ok(b.into_affine()))?;
+        let sa_g = P::G1Var::new_witness(cs.ns("sa"), || Ok(sa.into_affine()))?;
+        let sb_g = P::G2Var::new_witness(cs.ns("sb"), || Ok(sb.into_affine()))?;
 
         let a_prep_g = P::prepare_g1(&a_g)?;
         let b_prep_g = P::prepare_g2(&b_g)?;
